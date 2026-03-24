@@ -1,0 +1,171 @@
+import { NextRequest } from "next/server";
+import { z } from "zod";
+import { prisma } from "@/lib/db";
+import { auth } from "@/lib/auth";
+import { validateAnswer } from "@/modules/problems/validators/expression-parser";
+import {
+  calculateXPEarned,
+  buildXPResult,
+  getLevelForXP,
+} from "@/modules/gamification/xp-calculator";
+import { updateStreak } from "@/modules/gamification/streak-tracker";
+import { checkAndAwardBadges } from "@/modules/gamification/badge-checker";
+import { rateQuality, updateReviewSchedule } from "@/modules/adaptive/spaced-repetition";
+
+const submissionSchema = z.object({
+  problemId: z.string(),
+  answer: z.record(z.string(), z.unknown()),
+  timeSpent: z.number().optional(),
+});
+
+export async function POST(request: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await request.json();
+  const parsed = submissionSchema.safeParse(body);
+  if (!parsed.success) {
+    return Response.json({ error: "Invalid input" }, { status: 400 });
+  }
+
+  const { problemId, answer, timeSpent } = parsed.data;
+
+  const problem = await prisma.problem.findUnique({
+    where: { id: problemId },
+    include: {
+      lesson: { select: { xpReward: true } },
+      skills: { select: { skillId: true } },
+    },
+  });
+
+  if (!problem) {
+    return Response.json({ error: "Problem not found" }, { status: 404 });
+  }
+
+  // Determine correctness based on problem type
+  const content = problem.content as Record<string, unknown>;
+  let isCorrect = false;
+
+  if (problem.type === "MULTIPLE_CHOICE") {
+    const selectedIndex = answer.selectedIndex as number;
+    const correctIndex = content.correctIndex as number;
+    isCorrect = selectedIndex === correctIndex;
+  } else if (problem.type === "FREE_INPUT") {
+    const studentValue = answer.value as string;
+    const correctAnswer = content.correctAnswer as string;
+    isCorrect = validateAnswer(studentValue, correctAnswer);
+  }
+
+  // Check if this is the first attempt at this problem
+  const previousAttempts = await prisma.submission.count({
+    where: { userId: session.user.id, problemId },
+  });
+
+  // Record the submission
+  const submission = await prisma.submission.create({
+    data: {
+      userId: session.user.id,
+      problemId,
+      answer: answer as never,
+      isCorrect,
+      timeSpent,
+    },
+  });
+
+  // Update streak on any activity
+  const streakResult = await updateStreak(session.user.id);
+
+  // Award XP if correct
+  let xpResult = null;
+  let newBadges: Awaited<ReturnType<typeof checkAndAwardBadges>> = [];
+
+  if (isCorrect) {
+    // Get current XP before awarding
+    const profile = await prisma.studentProfile.findUnique({
+      where: { userId: session.user.id },
+      select: { xp: true },
+    });
+    const previousXP = profile?.xp ?? 0;
+
+    // Calculate XP with bonuses
+    const xpEarned = calculateXPEarned({
+      difficulty: problem.difficulty,
+      timeSpent: timeSpent ?? undefined,
+      streak: streakResult.streak,
+      isFirstAttempt: previousAttempts === 0,
+      lessonXPReward: problem.lesson?.xpReward,
+    });
+
+    // Update XP and level in DB
+    const newLevel = getLevelForXP(previousXP + xpEarned);
+    await prisma.studentProfile.update({
+      where: { userId: session.user.id },
+      data: {
+        xp: { increment: xpEarned },
+        level: newLevel,
+      },
+    });
+
+    xpResult = buildXPResult(previousXP, xpEarned);
+
+    // Update skill mastery via spaced repetition
+    const quality = rateQuality({
+      isCorrect: true,
+      timeSpent: timeSpent ?? undefined,
+      expectedTime: problem.difficulty * 30,
+      attempts: previousAttempts + 1,
+    });
+
+    for (const { skillId } of problem.skills) {
+      await updateReviewSchedule({
+        userId: session.user.id,
+        skillId,
+        quality,
+      });
+    }
+
+    // Check for new badges
+    newBadges = await checkAndAwardBadges(session.user.id);
+  } else {
+    // Wrong answer — still update spaced repetition (lower quality)
+    const quality = rateQuality({
+      isCorrect: false,
+      attempts: previousAttempts + 1,
+    });
+
+    for (const { skillId } of problem.skills) {
+      await updateReviewSchedule({
+        userId: session.user.id,
+        skillId,
+        quality,
+      });
+    }
+  }
+
+  // Build response
+  const result: Record<string, unknown> = {
+    submissionId: submission.id,
+    isCorrect,
+    xp: xpResult,
+    streak: {
+      current: streakResult.streak,
+      isNewDay: streakResult.isNewDay,
+      broken: streakResult.broken,
+    },
+    newBadges: newBadges.length > 0 ? newBadges : undefined,
+  };
+
+  if (!isCorrect) {
+    if (problem.type === "MULTIPLE_CHOICE") {
+      const options = content.options as string[];
+      const correctIndex = content.correctIndex as number;
+      result.correctAnswer = options[correctIndex];
+    } else if (problem.type === "FREE_INPUT") {
+      result.correctAnswer = content.correctAnswer;
+    }
+  }
+
+  return Response.json(result);
+}

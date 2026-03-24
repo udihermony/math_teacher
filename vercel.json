@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "functions": {
+    "src/app/api/ai/**/*.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/exam/**/*.ts": {
+      "maxDuration": 60
+    }
+  },
+  "crons": []
+}

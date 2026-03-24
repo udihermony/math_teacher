@@ -1,0 +1,277 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ──────────────────────────────────────────────
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+enum Phase {
+  FOUNDATIONS // Ages 5-8
+  EXPLORER   // Ages 8-11
+  BUILDER    // Ages 11-14
+  CHALLENGER // Ages 14-16
+  IB_READY   // Ages 16-18
+}
+
+enum ProblemType {
+  MULTIPLE_CHOICE
+  FREE_INPUT
+  DRAG_AND_DROP
+  GRAPHING
+  PROOF_BUILDER
+  WORKED_SOLUTION
+}
+
+enum ClassRole {
+  STUDENT
+  TEACHER
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum ChallengeStatus {
+  WAITING    // waiting for opponent
+  ACTIVE     // in progress
+  COMPLETED  // finished
+  CANCELLED
+}
+
+// ── Users ──────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  role         Role     @default(STUDENT)
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  studentProfile StudentProfile?
+  submissions    Submission[]
+  progress       Progress[]
+  badges         UserBadge[]
+
+  teacherProfile TeacherProfile?
+  createdLessons Lesson[]          @relation("CreatedBy")
+  classes        ClassMembership[]
+
+  sentFriendRequests     Friendship[] @relation("FriendRequester")
+  receivedFriendRequests Friendship[] @relation("FriendReceiver")
+  challengesCreated      Challenge[]  @relation("ChallengeCreator")
+  challengesJoined       Challenge[]  @relation("ChallengeOpponent")
+  challengeSubmissions   ChallengeSubmission[]
+}
+
+model StudentProfile {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id])
+  currentPhase   Phase     @default(FOUNDATIONS)
+  xp             Int       @default(0)
+  level          Int       @default(1)
+  streak         Int       @default(0)
+  lastActiveDate DateTime?
+  preferences    Json?
+}
+
+model TeacherProfile {
+  id     String  @id @default(cuid())
+  userId String  @unique
+  user   User    @relation(fields: [userId], references: [id])
+  school String?
+  bio    String?
+}
+
+// ── Curriculum ─────────────────────────────────────────
+
+model Topic {
+  id          String   @id @default(cuid())
+  phase       Phase
+  name        String
+  slug        String   @unique
+  description String?
+  order       Int
+  iconUrl     String?
+  lessons     Lesson[]
+  skills      Skill[]
+}
+
+model Lesson {
+  id          String   @id @default(cuid())
+  topicId     String
+  topic       Topic    @relation(fields: [topicId], references: [id])
+  title       String
+  slug        String   @unique
+  description String?
+  content     Json
+  order       Int
+  xpReward    Int      @default(10)
+  problems    Problem[]
+  createdById String?
+  createdBy   User?    @relation("CreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Skill {
+  id            String         @id @default(cuid())
+  topicId       String
+  topic         Topic          @relation(fields: [topicId], references: [id])
+  name          String
+  slug          String         @unique
+  description   String?
+  prerequisites Skill[]        @relation("SkillPrereqs")
+  dependents    Skill[]        @relation("SkillPrereqs")
+  problems      ProblemSkill[]
+  mastery       Progress[]
+}
+
+model Problem {
+  id             String         @id @default(cuid())
+  lessonId       String?
+  lesson         Lesson?        @relation(fields: [lessonId], references: [id])
+  type           ProblemType
+  difficulty     Int
+  content        Json
+  commonMistakes Json?
+  solution       Json?
+  skills         ProblemSkill[]
+  submissions    Submission[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model ProblemSkill {
+  problemId String
+  skillId   String
+  problem   Problem @relation(fields: [problemId], references: [id])
+  skill     Skill   @relation(fields: [skillId], references: [id])
+
+  @@id([problemId, skillId])
+}
+
+// ── Student progress ───────────────────────────────────
+
+model Submission {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  problemId  String
+  problem    Problem  @relation(fields: [problemId], references: [id])
+  answer     Json
+  isCorrect  Boolean
+  timeSpent  Int?
+  aiAnalysis Json?
+  createdAt  DateTime @default(now())
+}
+
+model Progress {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  skillId    String
+  skill      Skill     @relation(fields: [skillId], references: [id])
+  mastery    Float     @default(0)
+  lastReview DateTime?
+  nextReview DateTime?
+
+  @@unique([userId, skillId])
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  badgeSlug String
+  earnedAt  DateTime @default(now())
+
+  @@unique([userId, badgeSlug])
+}
+
+// ── Classes ────────────────────────────────────────────
+
+model Class {
+  id        String            @id @default(cuid())
+  name      String
+  code      String            @unique
+  members   ClassMembership[]
+  createdAt DateTime          @default(now())
+}
+
+model ClassMembership {
+  id      String    @id @default(cuid())
+  classId String
+  class   Class     @relation(fields: [classId], references: [id])
+  userId  String
+  user    User      @relation(fields: [userId], references: [id])
+  role    ClassRole @default(STUDENT)
+
+  @@unique([classId, userId])
+}
+
+// ── Social ────────────────────────────────────────────
+
+model Friendship {
+  id          String           @id @default(cuid())
+  requesterId String
+  requester   User             @relation("FriendRequester", fields: [requesterId], references: [id])
+  receiverId  String
+  receiver    User             @relation("FriendReceiver", fields: [receiverId], references: [id])
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([requesterId, receiverId])
+}
+
+// ── Challenges ────────────────────────────────────────
+
+model Challenge {
+  id          String          @id @default(cuid())
+  creatorId   String
+  creator     User            @relation("ChallengeCreator", fields: [creatorId], references: [id])
+  opponentId  String?
+  opponent    User?           @relation("ChallengeOpponent", fields: [opponentId], references: [id])
+  status      ChallengeStatus @default(WAITING)
+  topicId     String?
+  difficulty  Int             @default(5)
+  problemCount Int            @default(5)
+  problems    Json            // Array of problem IDs
+  timeLimit   Int             @default(300) // seconds
+  creatorScore  Int           @default(0)
+  opponentScore Int           @default(0)
+  submissions ChallengeSubmission[]
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime        @default(now())
+}
+
+model ChallengeSubmission {
+  id          String    @id @default(cuid())
+  challengeId String
+  challenge   Challenge @relation(fields: [challengeId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  problemId   String
+  isCorrect   Boolean
+  timeSpent   Int?
+  createdAt   DateTime  @default(now())
+
+  @@unique([challengeId, userId, problemId])
+}
