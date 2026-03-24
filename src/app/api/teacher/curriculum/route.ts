@@ -15,8 +15,6 @@ export async function GET() {
         },
         orderBy: { order: "asc" },
       },
-      skills: { select: { id: true, name: true }, orderBy: { name: "asc" } },
-      _count: { select: { skills: true } },
     },
     orderBy: [{ phase: "asc" }, { order: "asc" }],
   });

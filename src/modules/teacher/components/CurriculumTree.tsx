@@ -22,7 +22,6 @@ interface TopicNode {
   description: string | null;
   order: number;
   lessons: LessonNode[];
-  _count: { skills: number };
 }
 
 interface LessonNode {
@@ -45,14 +44,27 @@ interface CurriculumTreeProps {
   topics: TopicNode[];
   onDeleteTopic: (id: string) => void;
   onDeleteLesson: (id: string) => void;
+  highlightLessonId?: string;
 }
 
 export function CurriculumTree({
   topics,
   onDeleteTopic,
   onDeleteLesson,
+  highlightLessonId,
 }: CurriculumTreeProps) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // Auto-expand phase + topic containing the highlighted lesson
+  const initialExpanded = new Set<string>();
+  if (highlightLessonId) {
+    for (const topic of topics) {
+      if (topic.lessons.some((l) => l.id === highlightLessonId)) {
+        initialExpanded.add(topic.phase);
+        initialExpanded.add(topic.id);
+        break;
+      }
+    }
+  }
+  const [expanded, setExpanded] = useState<Set<string>>(initialExpanded);
 
   function toggleExpand(id: string) {
     setExpanded((prev) => {
@@ -125,7 +137,7 @@ export function CurriculumTree({
                         </button>
                         <BookOpen size={14} className="text-muted-foreground" />
                         <span className="flex-1 text-sm font-medium">{topic.name}</span>
-                        <Badge variant="default">{topic._count.skills} skills</Badge>
+                        <Badge variant="default">{topic.lessons.length} lessons</Badge>
                         <Link
                           href={`/teacher/ai-assistant?action=generate-lesson&topicId=${topic.id}&topicName=${encodeURIComponent(topic.name)}&phase=${topic.phase}`}
                           className="rounded p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary"
@@ -160,7 +172,8 @@ export function CurriculumTree({
                           {topic.lessons.map((lesson) => (
                             <div
                               key={lesson.id}
-                              className="flex items-center gap-2 px-14 py-2 hover:bg-secondary/40"
+                              id={lesson.id}
+                              className={`flex items-center gap-2 px-14 py-2 hover:bg-secondary/40${highlightLessonId === lesson.id ? " bg-primary/10 ring-1 ring-primary/30 rounded" : ""}`}
                             >
                               <HelpCircle size={12} className="text-muted-foreground" />
                               <Link
@@ -173,7 +186,7 @@ export function CurriculumTree({
                                 {lesson._count.problems} problem{lesson._count.problems !== 1 ? "s" : ""}
                               </Badge>
                               <Link
-                                href={`/teacher/ai-assistant?action=generate-problems&lessonTitle=${encodeURIComponent(lesson.title)}&phase=${topic.phase}`}
+                                href={`/teacher/ai-assistant?action=generate-problems&lessonId=${lesson.id}&lessonTitle=${encodeURIComponent(lesson.title)}&phase=${topic.phase}`}
                                 className="rounded p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary"
                                 title="AI: Generate problems for this lesson"
                               >

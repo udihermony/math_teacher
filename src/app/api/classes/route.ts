@@ -20,6 +20,19 @@ export async function GET() {
               user: { select: { id: true, name: true, role: true } },
             },
           },
+          assignments: {
+            include: {
+              lesson: {
+                select: {
+                  id: true,
+                  title: true,
+                  topic: { select: { name: true, phase: true } },
+                  problems: { select: { id: true } },
+                },
+              },
+            },
+            orderBy: { createdAt: "desc" },
+          },
         },
       },
     },

@@ -18,12 +18,25 @@ export interface LessonProgress {
   correct: number;
 }
 
+export interface PendingAssignment {
+  id: string;
+  lessonId: string;
+  lessonTitle: string;
+  topicName: string;
+  totalProblems: number;
+  attempted: number;
+  correct: number;
+  dueDate: string | null;
+  className: string;
+}
+
 export default async function StudentDashboard() {
   const session = await auth();
   const userId = session?.user?.id;
 
   let topicProgress: TopicProgress[] = [];
   let currentPhase = "FOUNDATIONS";
+  let pendingAssignments: PendingAssignment[] = [];
 
   if (userId) {
     const profile = await prisma.studentProfile.findUnique({
@@ -89,6 +102,59 @@ export default async function StudentDashboard() {
           };
         }),
       }));
+
+    // Fetch pending assignments from classes
+    const memberships = await prisma.classMembership.findMany({
+      where: { userId, role: "STUDENT" },
+      include: {
+        class: {
+          include: {
+            assignments: {
+              include: {
+                lesson: {
+                  include: {
+                    topic: { select: { name: true } },
+                    problems: { select: { id: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    for (const m of memberships) {
+      for (const a of m.class.assignments) {
+        const assignedIds = a.problemIds as string[] | null;
+        const problemIds = assignedIds && assignedIds.length > 0
+          ? assignedIds
+          : a.lesson.problems.map((p) => p.id);
+        let attempted = 0;
+        let correct = 0;
+        for (const pid of problemIds) {
+          const stat = problemStats.get(pid);
+          if (stat) {
+            attempted++;
+            if (stat.correct) correct++;
+          }
+        }
+        // Only show if not fully completed
+        if (attempted < problemIds.length) {
+          pendingAssignments.push({
+            id: a.id,
+            lessonId: a.lesson.id,
+            lessonTitle: a.lesson.title,
+            topicName: a.lesson.topic.name,
+            totalProblems: problemIds.length,
+            attempted,
+            correct,
+            dueDate: a.dueDate?.toISOString() ?? null,
+            className: m.class.name,
+          });
+        }
+      }
+    }
   }
 
   return (
@@ -96,6 +162,7 @@ export default async function StudentDashboard() {
       userName={session?.user?.name ?? "Explorer"}
       currentPhase={currentPhase}
       topics={topicProgress}
+      pendingAssignments={pendingAssignments}
     />
   );
 }

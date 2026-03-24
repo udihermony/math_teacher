@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Plus, X } from "lucide-react";
 import { CurriculumTree } from "@/modules/teacher/components/CurriculumTree";
@@ -28,10 +29,19 @@ interface TopicNode {
     order: number;
     _count: { problems: number };
   }[];
-  _count: { skills: number };
 }
 
 export default function CurriculumPage() {
+  return (
+    <Suspense fallback={<div className="flex h-64 items-center justify-center"><Spinner size="lg" /></div>}>
+      <CurriculumPageInner />
+    </Suspense>
+  );
+}
+
+function CurriculumPageInner() {
+  const searchParams = useSearchParams();
+  const highlightLessonId = searchParams.get("lessonId") || undefined;
   const [topics, setTopics] = useState<TopicNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewTopic, setShowNewTopic] = useState(false);
@@ -207,6 +217,7 @@ export default function CurriculumPage() {
         topics={topics}
         onDeleteTopic={handleDeleteTopic}
         onDeleteLesson={handleDeleteLesson}
+        highlightLessonId={highlightLessonId}
       />
     </div>
   );

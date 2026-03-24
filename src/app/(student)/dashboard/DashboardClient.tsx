@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronRight, BookOpen, CheckCircle2, Circle, Minus } from "lucide-react";
-import type { TopicProgress, LessonProgress } from "./page";
+import { ChevronDown, ChevronRight, BookOpen, CheckCircle2, Circle, Minus, ArrowRight, Clock } from "lucide-react";
+import type { TopicProgress, LessonProgress, PendingAssignment } from "./page";
 
 interface DashboardClientProps {
   userName: string;
   currentPhase: string;
   topics: TopicProgress[];
+  pendingAssignments?: PendingAssignment[];
 }
 
 const PHASE_LABELS: Record<string, string> = {
@@ -41,7 +42,7 @@ function topicProficiency(lessons: LessonProgress[]): number {
   return Math.round((correct / total) * 100);
 }
 
-export function DashboardClient({ userName, currentPhase, topics }: DashboardClientProps) {
+export function DashboardClient({ userName, currentPhase, topics, pendingAssignments = [] }: DashboardClientProps) {
   // Group topics by phase
   const phases = new Map<string, TopicProgress[]>();
   for (const topic of topics) {
@@ -86,6 +87,41 @@ export function DashboardClient({ userName, currentPhase, topics }: DashboardCli
               className="h-full rounded-full bg-green-500 transition-all duration-500"
               style={{ width: `${(completedLessons / totalLessons) * 100}%` }}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Pending Assignments */}
+      {pendingAssignments.length > 0 && (
+        <div className="mt-6">
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
+            <Clock size={18} className="text-amber-500" />
+            Pending Assignments
+          </h2>
+          <div className="space-y-2">
+            {pendingAssignments.map((a) => (
+              <Link
+                key={a.id}
+                href={`/practice?lessonId=${a.lessonId}`}
+                className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 transition-colors hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-950/30 dark:hover:bg-amber-950/50"
+              >
+                <BookOpen size={16} className="shrink-0 text-amber-600" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{a.lessonTitle}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {a.topicName} &middot; {a.className}
+                    {a.dueDate && ` · Due ${new Date(a.dueDate).toLocaleDateString("en-CA")}`}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium">{a.correct}/{a.totalProblems}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {a.attempted === 0 ? "Not started" : "In progress"}
+                  </p>
+                </div>
+                <ArrowRight size={16} className="text-amber-600" />
+              </Link>
+            ))}
           </div>
         </div>
       )}

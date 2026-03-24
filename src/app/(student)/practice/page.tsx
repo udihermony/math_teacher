@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Trophy, Zap } from "lucide-react";
 import { ProblemRenderer } from "@/modules/problems";
@@ -24,6 +25,15 @@ interface ProblemData {
 }
 
 export default function PracticePage() {
+  return (
+    <Suspense>
+      <PracticeInner />
+    </Suspense>
+  );
+}
+
+function PracticeInner() {
+  const searchParams = useSearchParams();
   const {
     problem,
     loading,
@@ -50,15 +60,21 @@ export default function PracticePage() {
   const [currentXP, setCurrentXP] = useState({ level: 1, xp: 0, progress: 0, xpToNext: 71 });
   const [currentStreak, setCurrentStreak] = useState({ streak: 0, isActiveToday: false });
 
-  // Load problems on mount
+  // Load problems on mount, passing lessonId/topicId from URL if present
   useEffect(() => {
-    fetchProblems().then((problems) => {
+    const params: Record<string, string> = {};
+    const lessonId = searchParams.get("lessonId");
+    const topicId = searchParams.get("topicId");
+    if (lessonId) params.lessonId = lessonId;
+    if (topicId) params.topicId = topicId;
+
+    fetchProblems(params).then((problems) => {
       setProblemQueue(problems as ProblemData[]);
       if (problems.length > 0) {
         fetchProblem(problems[0].id);
       }
     });
-  }, [fetchProblems, fetchProblem]);
+  }, [fetchProblems, fetchProblem, searchParams]);
 
   const handleSubmit = useCallback(
     async (answer: Record<string, unknown>) => {

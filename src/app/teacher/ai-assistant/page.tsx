@@ -71,9 +71,10 @@ function AIAssistantInner() {
   const [synthPhase, setSynthPhase] = useState("BUILDER");
   const [synthInstructions, setSynthInstructions] = useState("");
 
-  // Topics for save flow
-  const [topics, setTopics] = useState<{ id: string; name: string; phase: string }[]>([]);
+  // Topics & lessons for save flow
+  const [topics, setTopics] = useState<{ id: string; name: string; phase: string; lessons: { id: string; title: string }[] }[]>([]);
   const [selectedTopicId, setSelectedTopicId] = useState("");
+  const [selectedLessonId, setSelectedLessonId] = useState("");
   const [initFromParams, setInitFromParams] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -87,13 +88,27 @@ function AIAssistantInner() {
     fetch("/api/teacher/curriculum")
       .then((r) => r.json())
       .then((data) => {
-        const loadedTopics = data.topics || [];
+        const loadedTopics = (data.topics || []).map((t: { id: string; name: string; phase: string; lessons: { id: string; title: string }[] }) => ({
+          id: t.id,
+          name: t.name,
+          phase: t.phase,
+          lessons: t.lessons || [],
+        }));
         setTopics(loadedTopics);
 
-        // Auto-select topic if topicId is in query params
+        // Auto-select topic/lesson if in query params
         const topicId = searchParams.get("topicId");
         if (topicId) {
           setSelectedTopicId(topicId);
+        }
+        const lessonId = searchParams.get("lessonId");
+        if (lessonId) {
+          setSelectedLessonId(lessonId);
+          // Also auto-select the parent topic
+          const parentTopic = loadedTopics.find((t: { lessons: { id: string }[] }) => t.lessons.some((l: { id: string }) => l.id === lessonId));
+          if (parentTopic) {
+            setSelectedTopicId(parentTopic.id);
+          }
         }
       });
   }, [searchParams]);
@@ -342,7 +357,12 @@ function AIAssistantInner() {
         setSaving(null);
       }
     } else {
-      const problems = Array.isArray(parsed) ? parsed : [parsed];
+      if (!selectedLessonId) {
+        alert("Please select a lesson to save problems to (use the 'Save to lesson' dropdown in the header).");
+        return;
+      }
+
+      const problems = Array.isArray(parsed) ? parsed : parsed.problems ? parsed.problems : [parsed];
 
       setSaving(saveType);
       try {
@@ -351,13 +371,14 @@ function AIAssistantInner() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: "problems",
+            lessonId: selectedLessonId,
             data: problems,
           }),
         });
 
         if (res.ok) {
           const result = await res.json();
-          setSaveSuccess(`Saved ${result.problemsCreated} problems`);
+          setSaveSuccess(`Saved ${result.problemsCreated} problems to lesson`);
           setTimeout(() => setSaveSuccess(null), 5000);
         } else {
           const err = await res.json();
@@ -468,21 +489,41 @@ function AIAssistantInner() {
             ))}
           </div>
 
-          {/* Topic selector for save flow */}
-          <div className="ml-auto flex items-center gap-2">
-            <label className="text-xs text-muted-foreground">Save to topic:</label>
-            <select
-              value={selectedTopicId}
-              onChange={(e) => setSelectedTopicId(e.target.value)}
-              className="rounded-md border border-border bg-background px-2 py-1 text-xs"
-            >
-              <option value="">Select topic...</option>
-              {topics.map((t) => (
-                <option key={t.id} value={t.id}>
-                  [{t.phase}] {t.name}
-                </option>
-              ))}
-            </select>
+          {/* Topic & Lesson selectors for save flow */}
+          <div className="ml-auto flex items-center gap-3">
+            <div className="flex items-center gap-1">
+              <label className="text-xs text-muted-foreground">Topic:</label>
+              <select
+                value={selectedTopicId}
+                onChange={(e) => {
+                  setSelectedTopicId(e.target.value);
+                  setSelectedLessonId("");
+                }}
+                className="max-w-[180px] rounded-md border border-border bg-background px-2 py-1 text-xs"
+              >
+                <option value="">Select topic...</option>
+                {topics.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    [{t.phase}] {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-1">
+              <label className="text-xs text-muted-foreground">Lesson:</label>
+              <select
+                value={selectedLessonId}
+                onChange={(e) => setSelectedLessonId(e.target.value)}
+                className="max-w-[180px] rounded-md border border-border bg-background px-2 py-1 text-xs"
+              >
+                <option value="">Select lesson...</option>
+                {(topics.find((t) => t.id === selectedTopicId)?.lessons || []).map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.title}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 

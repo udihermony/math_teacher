@@ -88,6 +88,7 @@ export function StudentSidebar({ user }: SidebarProps) {
     { href: "/practice", label: "Practice", icon: <Dumbbell size={18} /> },
     { href: "/challenge", label: "Challenges", icon: <Swords size={18} /> },
     { href: "/friends", label: "Friends", icon: <UserPlus size={18} /> },
+    { href: "/classes", label: "Classes", icon: <GraduationCap size={18} /> },
     { href: "/ib-prep", label: "IB Prep", icon: <FileText size={18} /> },
     { href: "/profile", label: "Profile", icon: <User size={18} /> },
     { href: "/settings", label: "Settings", icon: <Settings size={18} /> },
