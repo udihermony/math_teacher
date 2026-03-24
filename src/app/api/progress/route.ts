@@ -11,6 +11,11 @@ import {
 import { updateStreak } from "@/modules/gamification/streak-tracker";
 import { checkAndAwardBadges } from "@/modules/gamification/badge-checker";
 import { rateQuality, updateReviewSchedule } from "@/modules/adaptive/spaced-repetition";
+import {
+  awardAnswerCoin,
+  checkAssignmentCompletion,
+  checkTopicCompletion,
+} from "@/modules/gamification/coin-calculator";
 
 const submissionSchema = z.object({
   problemId: z.string(),
@@ -35,7 +40,7 @@ export async function POST(request: NextRequest) {
   const problem = await prisma.problem.findUnique({
     where: { id: problemId },
     include: {
-      lesson: { select: { xpReward: true } },
+      lesson: { select: { xpReward: true, id: true, topicId: true } },
       skills: { select: { skillId: true } },
     },
   });
@@ -77,8 +82,9 @@ export async function POST(request: NextRequest) {
   // Update streak on any activity
   const streakResult = await updateStreak(session.user.id);
 
-  // Award XP if correct
+  // Award XP and coins if correct
   let xpResult = null;
+  let coinsEarned = 0;
   let newBadges: Awaited<ReturnType<typeof checkAndAwardBadges>> = [];
 
   if (isCorrect) {
@@ -128,6 +134,20 @@ export async function POST(request: NextRequest) {
 
     // Check for new badges
     newBadges = await checkAndAwardBadges(session.user.id);
+
+    // Award coins
+    if (problem.lesson?.id) {
+      const answerCoin = await awardAnswerCoin(session.user.id, problem.lesson.id);
+      coinsEarned += answerCoin;
+
+      const assignmentResult = await checkAssignmentCompletion(session.user.id, problemId);
+      coinsEarned += assignmentResult.coins;
+
+      if (assignmentResult.coins > 0 && problem.lesson.topicId) {
+        const topicBonus = await checkTopicCompletion(session.user.id, problem.lesson.topicId);
+        coinsEarned += topicBonus;
+      }
+    }
   } else {
     // Wrong answer — still update spaced repetition (lower quality)
     const quality = rateQuality({
@@ -144,11 +164,22 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Get updated coin balance
+  let coinBalance = 0;
+  if (coinsEarned > 0) {
+    const profile = await prisma.studentProfile.findUnique({
+      where: { userId: session.user.id },
+      select: { coins: true },
+    });
+    coinBalance = profile?.coins ?? 0;
+  }
+
   // Build response
   const result: Record<string, unknown> = {
     submissionId: submission.id,
     isCorrect,
     xp: xpResult,
+    coins: coinsEarned > 0 ? { earned: coinsEarned, balance: coinBalance } : undefined,
     streak: {
       current: streakResult.streak,
       isNewDay: streakResult.isNewDay,

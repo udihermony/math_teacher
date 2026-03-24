@@ -27,7 +27,7 @@ interface TopicNode {
     title: string;
     slug: string;
     order: number;
-    _count: { problems: number };
+    _count: { problems: number; practice: number; assignment: number };
   }[];
 }
 

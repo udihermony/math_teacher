@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 
@@ -103,6 +104,46 @@ export async function GET(
   }
 
   return Response.json({ class: cls, analytics });
+}
+
+/** PATCH /api/classes/:id — update class settings (teacher). */
+export async function PATCH(
+  request: NextRequest,
+  { params }: RouteParams
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { classId } = await params;
+
+  const membership = await prisma.classMembership.findUnique({
+    where: { classId_userId: { classId, userId: session.user.id } },
+  });
+  if (!membership || membership.role !== "TEACHER") {
+    return Response.json({ error: "Not authorized" }, { status: 403 });
+  }
+
+  const body = await request.json();
+  const parsed = z.object({
+    phase: z.enum(["FOUNDATIONS", "EXPLORER", "BUILDER", "CHALLENGER", "IB_READY"]).optional(),
+    name: z.string().min(1).max(100).optional(),
+  }).safeParse(body);
+
+  if (!parsed.success) {
+    return Response.json({ error: "Invalid input" }, { status: 400 });
+  }
+
+  const updated = await prisma.class.update({
+    where: { id: classId },
+    data: {
+      ...(parsed.data.phase && { phase: parsed.data.phase }),
+      ...(parsed.data.name && { name: parsed.data.name }),
+    },
+  });
+
+  return Response.json({ class: updated });
 }
 
 /** DELETE /api/classes/:id — remove a student from class (teacher) or leave (student). */

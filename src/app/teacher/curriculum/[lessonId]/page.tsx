@@ -31,6 +31,7 @@ interface ContentBlock {
 interface ProblemData {
   id: string;
   type: string;
+  purpose: string;
   difficulty: number;
   content: Record<string, unknown>;
   skills: { skill: { id: string; name: string } }[];
@@ -159,6 +160,9 @@ export default function EditLessonPage({
                   className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-secondary/50"
                 >
                   <Badge variant="default">{problem.type}</Badge>
+                  <Badge variant={problem.purpose === "ASSIGNMENT" ? "warning" : "success"}>
+                    {problem.purpose === "ASSIGNMENT" ? "Assignment" : "Practice"}
+                  </Badge>
                   <span className="flex-1 text-sm truncate">{question}</span>
                   <span className="text-xs text-muted-foreground">
                     Difficulty: {problem.difficulty}/10

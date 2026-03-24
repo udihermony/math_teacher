@@ -11,6 +11,7 @@ interface ClassMember {
 
 interface ClassAssignment {
   id: string;
+  problemIds: string[] | null;
   dueDate: string | null;
   note: string | null;
   lesson: {
@@ -192,7 +193,7 @@ export default function StudentClassesPage() {
                       return (
                         <Link
                           key={a.id}
-                          href={`/practice?lessonId=${a.lesson.id}`}
+                          href={a.problemIds && a.problemIds.length > 0 ? `/practice?ids=${a.problemIds.join(",")}` : `/practice?lessonId=${a.lesson.id}`}
                           className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-secondary ${isDone ? "opacity-60" : ""}`}
                         >
                           {isDone ? (

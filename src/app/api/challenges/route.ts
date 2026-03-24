@@ -79,6 +79,7 @@ export async function POST(request: NextRequest) {
   // Select random problems matching criteria
   const where: Record<string, unknown> = {
     difficulty: { gte: Math.max(1, difficulty - 1), lte: Math.min(10, difficulty + 1) },
+    purpose: "PRACTICE",
   };
   if (topicId) {
     where.lesson = { topicId };

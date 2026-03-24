@@ -14,7 +14,21 @@ export async function GET(request: NextRequest) {
   const offset = parseInt(searchParams.get("offset") || "0", 10);
   const adaptive = searchParams.get("adaptive") === "true";
 
+  const purpose = searchParams.get("purpose"); // "PRACTICE", "ASSIGNMENT", or "ALL"
+  const ids = searchParams.get("ids"); // comma-separated problem IDs (for assignments)
+
   const where: Record<string, unknown> = {};
+
+  // When fetching by specific IDs (e.g., assignment problems), skip purpose filter
+  if (ids) {
+    where.id = { in: ids.split(",") };
+  } else {
+    // Default to PRACTICE for student-facing queries
+    if (purpose === "ASSIGNMENT") where.purpose = "ASSIGNMENT";
+    else if (purpose === "ALL") { /* no filter */ }
+    else where.purpose = "PRACTICE";
+  }
+
   if (lessonId) where.lessonId = lessonId;
   if (type) where.type = type;
   if (difficulty) where.difficulty = parseInt(difficulty, 10);

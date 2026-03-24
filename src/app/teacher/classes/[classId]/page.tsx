@@ -70,7 +70,7 @@ interface TopicWithLessons {
 
 export default function ClassDetailPage({ params }: { params: Promise<{ classId: string }> }) {
   const { classId } = use(params);
-  const [classData, setClassData] = useState<{ name: string; code: string; members: Array<{ role: string; user: StudentData }> } | null>(null);
+  const [classData, setClassData] = useState<{ name: string; code: string; phase: string; members: Array<{ role: string; user: StudentData }> } | null>(null);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -85,9 +85,9 @@ export default function ClassDetailPage({ params }: { params: Promise<{ classId:
   const [assignNote, setAssignNote] = useState("");
   const [assigning, setAssigning] = useState(false);
 
-  // Problem selection for assignment
-  const [lessonProblems, setLessonProblems] = useState<{ id: string; type: string; difficulty: number; content: Record<string, unknown> }[]>([]);
-  const [selectedProblemIds, setSelectedProblemIds] = useState<Set<string>>(new Set());
+  // Question count for assignment
+  const [questionCount, setQuestionCount] = useState(5);
+  const [availableAssignmentCount, setAvailableAssignmentCount] = useState(0);
   const [loadingProblems, setLoadingProblems] = useState(false);
 
   // Assignment progress
@@ -131,39 +131,19 @@ export default function ClassDetailPage({ params }: { params: Promise<{ classId:
       .then((data) => setTopics(data.topics || []));
   }, [fetchClassData, fetchAssignments]);
 
-  // Fetch problems when lesson selection changes
-  async function fetchLessonProblems(lessonId: string) {
+  // Fetch assignment problem count when lesson selection changes
+  async function fetchAssignmentProblemCount(lessonId: string) {
     if (!lessonId) {
-      setLessonProblems([]);
-      setSelectedProblemIds(new Set());
+      setAvailableAssignmentCount(0);
       return;
     }
     setLoadingProblems(true);
-    const res = await fetch(`/api/problems?lessonId=${lessonId}&limit=100`);
+    const res = await fetch(`/api/problems?lessonId=${lessonId}&purpose=ASSIGNMENT&limit=1`);
     if (res.ok) {
       const data = await res.json();
-      setLessonProblems(data.problems || []);
-      // Select all by default
-      setSelectedProblemIds(new Set((data.problems || []).map((p: { id: string }) => p.id)));
+      setAvailableAssignmentCount(data.total || 0);
     }
     setLoadingProblems(false);
-  }
-
-  function toggleProblem(id: string) {
-    setSelectedProblemIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function toggleAllProblems() {
-    if (selectedProblemIds.size === lessonProblems.length) {
-      setSelectedProblemIds(new Set());
-    } else {
-      setSelectedProblemIds(new Set(lessonProblems.map((p) => p.id)));
-    }
   }
 
   async function removeStudent(userId: string) {
@@ -172,7 +152,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ classId:
   }
 
   async function handleAssign() {
-    if (!selectedLessonId || assigning || selectedProblemIds.size === 0) return;
+    if (!selectedLessonId || assigning || questionCount < 1) return;
     setAssigning(true);
 
     const res = await fetch(`/api/classes/${classId}/assignments`, {
@@ -180,7 +160,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ classId:
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         lessonId: selectedLessonId,
-        problemIds: Array.from(selectedProblemIds),
+        questionCount,
         dueDate: assignDueDate ? new Date(assignDueDate).toISOString() : undefined,
         note: assignNote || undefined,
       }),
@@ -192,8 +172,8 @@ export default function ClassDetailPage({ params }: { params: Promise<{ classId:
       setSelectedLessonId("");
       setAssignDueDate("");
       setAssignNote("");
-      setLessonProblems([]);
-      setSelectedProblemIds(new Set());
+      setQuestionCount(5);
+      setAvailableAssignmentCount(0);
       fetchAssignments();
     } else {
       const data = await res.json();
@@ -269,7 +249,29 @@ export default function ClassDetailPage({ params }: { params: Promise<{ classId:
       </Link>
 
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{classData.name}</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">{classData.name}</h1>
+          <select
+            value={classData.phase}
+            onChange={async (e) => {
+              const newPhase = e.target.value;
+              const res = await fetch(`/api/classes/${classId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ phase: newPhase }),
+              });
+              if (res.ok) setClassData({ ...classData, phase: newPhase });
+            }}
+            className="rounded-md border border-border bg-background px-2 py-1 text-sm"
+            title="Class level"
+          >
+            <option value="FOUNDATIONS">Foundations</option>
+            <option value="EXPLORER">Explorer</option>
+            <option value="BUILDER">Builder</option>
+            <option value="CHALLENGER">Challenger</option>
+            <option value="IB_READY">IB Ready</option>
+          </select>
+        </div>
         <button
           onClick={() => {
             navigator.clipboard.writeText(classData.code);
@@ -326,7 +328,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ classId:
                 <label className="mb-1 block text-xs font-medium">Topic</label>
                 <select
                   value={selectedTopicId}
-                  onChange={(e) => { setSelectedTopicId(e.target.value); setSelectedLessonId(""); setLessonProblems([]); setSelectedProblemIds(new Set()); }}
+                  onChange={(e) => { setSelectedTopicId(e.target.value); setSelectedLessonId(""); setAvailableAssignmentCount(0); }}
                   className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                 >
                   <option value="">Select topic...</option>
@@ -339,7 +341,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ classId:
                 <label className="mb-1 block text-xs font-medium">Lesson</label>
                 <select
                   value={selectedLessonId}
-                  onChange={(e) => { setSelectedLessonId(e.target.value); fetchLessonProblems(e.target.value); }}
+                  onChange={(e) => { setSelectedLessonId(e.target.value); fetchAssignmentProblemCount(e.target.value); }}
                   className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                   disabled={!selectedTopicId}
                 >
@@ -369,72 +371,46 @@ export default function ClassDetailPage({ params }: { params: Promise<{ classId:
                 />
               </div>
             </div>
-            {/* Problem selection */}
+            {/* Question count */}
             {selectedLessonId && (
               <div className="mt-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <label className="text-xs font-medium">
-                    Problems ({selectedProblemIds.size}/{lessonProblems.length} selected)
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <Link
-                      href={`/teacher/ai-assistant?action=generate-problems&lessonId=${selectedLessonId}&lessonTitle=${encodeURIComponent(selectedTopic?.lessons.find(l => l.id === selectedLessonId)?.title || '')}&phase=${selectedTopic?.phase || ''}`}
-                      className="flex items-center gap-1 text-xs text-primary hover:underline"
-                      title="Generate more problems with AI"
-                    >
-                      <Sparkles size={12} /> Add problems
-                    </Link>
-                    {lessonProblems.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={toggleAllProblems}
-                        className="text-xs text-primary hover:underline"
-                      >
-                        {selectedProblemIds.size === lessonProblems.length ? "Deselect all" : "Select all"}
-                      </button>
+                <div className="flex items-center gap-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium">Number of Questions</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={questionCount}
+                      onChange={(e) => setQuestionCount(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="flex-1 pt-4">
+                    {loadingProblems ? (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Loader2 size={12} className="animate-spin" /> Checking...
+                      </span>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        {availableAssignmentCount} assignment questions available
+                        {questionCount > availableAssignmentCount && (
+                          <span className="ml-1 text-amber-600">
+                            &mdash; {questionCount - availableAssignmentCount} will be auto-generated by AI
+                          </span>
+                        )}
+                      </p>
                     )}
                   </div>
                 </div>
-
-                {loadingProblems ? (
-                  <div className="flex items-center gap-2 py-3 text-xs text-muted-foreground">
-                    <Loader2 size={14} className="animate-spin" /> Loading problems...
-                  </div>
-                ) : lessonProblems.length === 0 ? (
-                  <p className="py-2 text-xs text-muted-foreground">
-                    No problems yet for this lesson.{" "}
-                    <Link
-                      href={`/teacher/ai-assistant?action=generate-problems&lessonId=${selectedLessonId}&lessonTitle=${encodeURIComponent(selectedTopic?.lessons.find(l => l.id === selectedLessonId)?.title || '')}&phase=${selectedTopic?.phase || ''}`}
-                      className="text-primary hover:underline"
-                    >
-                      Generate some with AI
-                    </Link>
-                  </p>
-                ) : (
-                  <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border border-border bg-background p-2">
-                    {lessonProblems.map((p, i) => {
-                      const label = (p.content as Record<string, unknown>)?.question
-                        || (p.content as Record<string, unknown>)?.title
-                        || `Problem ${i + 1}`;
-                      return (
-                        <label
-                          key={p.id}
-                          className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-secondary"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedProblemIds.has(p.id)}
-                            onChange={() => toggleProblem(p.id)}
-                            className="rounded border-border"
-                          />
-                          <span className="flex-1 truncate">{String(label)}</span>
-                          <Badge variant="default" className="text-[10px]">{p.type.replace("_", " ")}</Badge>
-                          <span className="text-[10px] text-muted-foreground">D{p.difficulty}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
+                <div className="mt-2">
+                  <Link
+                    href={`/teacher/curriculum?lessonId=${selectedLessonId}`}
+                    className="flex items-center gap-1 text-xs text-primary hover:underline"
+                  >
+                    <ExternalLink size={12} /> View lesson in curriculum
+                  </Link>
+                </div>
               </div>
             )}
 
@@ -447,7 +423,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ classId:
               </button>
               <button
                 onClick={handleAssign}
-                disabled={!selectedLessonId || assigning || selectedProblemIds.size === 0}
+                disabled={!selectedLessonId || assigning || questionCount < 1}
                 className="flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
               >
                 {assigning ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}

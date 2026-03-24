@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Trophy, Zap } from "lucide-react";
+import { ArrowRight, Trophy, Zap, Coins, ArrowLeft } from "lucide-react";
 import { ProblemRenderer } from "@/modules/problems";
 import { useProblem } from "@/modules/problems/hooks/useProblem";
 import { useCompanion } from "@/modules/companion";
@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/Badge";
 import { LevelUpModal } from "@/modules/gamification/components/LevelUpModal";
 import { XPBar } from "@/modules/gamification/components/XPBar";
 import { StreakCounter } from "@/modules/gamification/components/StreakCounter";
+import { TopicBrowser } from "./TopicBrowser";
 import type { BadgeDefinition } from "@/modules/gamification/badge-definitions";
 
 interface ProblemData {
@@ -34,6 +35,14 @@ export default function PracticePage() {
 
 function PracticeInner() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const lessonId = searchParams.get("lessonId");
+  const topicId = searchParams.get("topicId");
+  const assignmentIds = searchParams.get("ids");
+
+  // If no params, show the topic browser
+  const hasPracticeParams = !!(lessonId || topicId || assignmentIds);
+
   const {
     problem,
     loading,
@@ -59,14 +68,23 @@ function PracticeInner() {
   });
   const [currentXP, setCurrentXP] = useState({ level: 1, xp: 0, progress: 0, xpToNext: 71 });
   const [currentStreak, setCurrentStreak] = useState({ streak: 0, isActiveToday: false });
+  const [coinBalance, setCoinBalance] = useState(0);
+  const [lastCoinsEarned, setLastCoinsEarned] = useState(0);
 
   // Load problems on mount, passing lessonId/topicId from URL if present
+  // If assignmentIds is present, load those specific problems (for assignments)
   useEffect(() => {
+    if (!hasPracticeParams) return;
     const params: Record<string, string> = {};
-    const lessonId = searchParams.get("lessonId");
-    const topicId = searchParams.get("topicId");
-    if (lessonId) params.lessonId = lessonId;
-    if (topicId) params.topicId = topicId;
+
+    if (assignmentIds) {
+      // Assignment mode: fetch specific problems by ID
+      params.ids = assignmentIds;
+    } else {
+      // Practice mode: only PRACTICE problems
+      if (lessonId) params.lessonId = lessonId;
+      if (topicId) params.topicId = topicId;
+    }
 
     fetchProblems(params).then((problems) => {
       setProblemQueue(problems as ProblemData[]);
@@ -109,6 +127,13 @@ function PracticeInner() {
         }
       }
 
+      if (result.coins) {
+        setCoinBalance(result.coins.balance);
+        setLastCoinsEarned(result.coins.earned);
+      } else {
+        setLastCoinsEarned(0);
+      }
+
       if (result.streak) {
         setCurrentStreak({
           streak: result.streak.current,
@@ -134,6 +159,11 @@ function PracticeInner() {
 
   const currentProblemData = problemQueue[queueIndex] as ProblemData | undefined;
   const isLastProblem = queueIndex >= problemQueue.length - 1;
+
+  // Show topic browser when no practice params
+  if (!hasPracticeParams) {
+    return <TopicBrowser />;
+  }
 
   if (loading && !problem) {
     return (
@@ -174,16 +204,30 @@ function PracticeInner() {
 
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
-        <div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push("/practice")}
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            title="Back to topics"
+          >
+            <ArrowLeft size={16} />
+          </button>
+          <div>
           <h1 className="text-2xl font-bold">Practice</h1>
           {currentProblemData?.lesson && (
             <p className="text-sm text-muted-foreground">
               {currentProblemData.lesson.title}
             </p>
           )}
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
+          {coinBalance > 0 && (
+            <span className="flex items-center gap-1 text-sm font-medium text-amber-500">
+              <Coins size={14} /> {coinBalance}
+            </span>
+          )}
           <StreakCounter streak={currentStreak.streak} isActiveToday={currentStreak.isActiveToday} compact />
           <Badge variant="primary">
             {queueIndex + 1} / {problemQueue.length}
@@ -252,19 +296,25 @@ function PracticeInner() {
               disabled={submitting}
             />
 
-            {/* XP earned animation */}
+            {/* XP + Coin earned animation */}
             <AnimatePresence>
-              {result?.isCorrect && result.xpEarned && (
+              {result?.isCorrect && (result.xpEarned || lastCoinsEarned > 0) && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.5, y: 20 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="mt-4 flex items-center justify-center gap-2 text-amber-600"
+                  className="mt-4 flex items-center justify-center gap-4"
                 >
-                  <Zap size={20} />
-                  <span className="text-lg font-bold">
-                    +{result.xpEarned} XP
-                  </span>
+                  {result.xpEarned && (
+                    <span className="flex items-center gap-1 text-lg font-bold text-amber-600">
+                      <Zap size={20} /> +{result.xpEarned} XP
+                    </span>
+                  )}
+                  {lastCoinsEarned > 0 && (
+                    <span className="flex items-center gap-1 text-lg font-bold text-amber-500">
+                      <Coins size={20} /> +{lastCoinsEarned} coin{lastCoinsEarned > 1 ? "s" : ""}
+                    </span>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

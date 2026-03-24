@@ -2,10 +2,11 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireTeacher } from "@/lib/teacher-auth";
+import { generateAssignmentProblems } from "@/modules/ai/generate-assignment-problems";
 
 const assignSchema = z.object({
   lessonId: z.string().min(1),
-  problemIds: z.array(z.string()).optional(),
+  questionCount: z.number().int().min(1).max(100),
   dueDate: z.string().datetime().optional(),
   note: z.string().max(500).optional(),
 });
@@ -71,28 +72,53 @@ export async function POST(
     return Response.json({ error: "Lesson not found" }, { status: 404 });
   }
 
-  // Create assignment (upsert to avoid duplicates)
-  const problemIds = parsed.data.problemIds && parsed.data.problemIds.length > 0
-    ? parsed.data.problemIds
-    : null;
+  const { lessonId, questionCount } = parsed.data;
+
+  // Get existing ASSIGNMENT problems for this lesson
+  const existingProblems = await prisma.problem.findMany({
+    where: { lessonId, purpose: "ASSIGNMENT" },
+    select: { id: true },
+    take: questionCount,
+  });
+
+  let problemIds = existingProblems.map((p) => p.id);
+
+  // If not enough, auto-generate the deficit
+  if (problemIds.length < questionCount) {
+    const deficit = questionCount - problemIds.length;
+    const newIds = await generateAssignmentProblems({
+      lessonId,
+      count: deficit,
+      userId: session.user.id,
+    });
+    problemIds = [...problemIds, ...newIds];
+  }
+
+  // Trim to exact count requested
+  problemIds = problemIds.slice(0, questionCount);
 
   const assignment = await prisma.classAssignment.upsert({
-    where: { classId_lessonId: { classId, lessonId: parsed.data.lessonId } },
+    where: { classId_lessonId: { classId, lessonId } },
     create: {
       classId,
-      lessonId: parsed.data.lessonId,
+      lessonId,
       problemIds: problemIds as never,
+      questionCount,
       dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
       note: parsed.data.note || null,
     },
     update: {
       problemIds: problemIds as never,
+      questionCount,
       dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
       note: parsed.data.note || null,
     },
   });
 
-  return Response.json({ assignment }, { status: 201 });
+  return Response.json({
+    assignment,
+    generated: problemIds.length - existingProblems.length,
+  }, { status: 201 });
 }
 
 /** DELETE — remove an assignment */

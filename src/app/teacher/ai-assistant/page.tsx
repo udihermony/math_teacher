@@ -65,6 +65,7 @@ function AIAssistantInner() {
   const [probCount, setProbCount] = useState(10);
   const [probDiffMin, setProbDiffMin] = useState(3);
   const [probDiffMax, setProbDiffMax] = useState(7);
+  const [probPurpose, setProbPurpose] = useState<"PRACTICE" | "ASSIGNMENT">("PRACTICE");
 
   // File upload state
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
@@ -372,6 +373,7 @@ function AIAssistantInner() {
           body: JSON.stringify({
             type: "problems",
             lessonId: selectedLessonId,
+            purpose: probPurpose,
             data: problems,
           }),
         });
@@ -622,6 +624,17 @@ function AIAssistantInner() {
                     title="Max difficulty"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium">Purpose</label>
+                <select
+                  value={probPurpose}
+                  onChange={(e) => setProbPurpose(e.target.value as "PRACTICE" | "ASSIGNMENT")}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="PRACTICE">Practice (students see freely)</option>
+                  <option value="ASSIGNMENT">Assignment (teacher assigns only)</option>
+                </select>
               </div>
               <button
                 onClick={handleGenerateProblems}

@@ -11,7 +11,7 @@ export async function GET() {
     include: {
       lessons: {
         include: {
-          _count: { select: { problems: true } },
+          problems: { select: { purpose: true } },
         },
         orderBy: { order: "asc" },
       },
@@ -19,5 +19,25 @@ export async function GET() {
     orderBy: [{ phase: "asc" }, { order: "asc" }],
   });
 
-  return Response.json({ topics });
+  // Compute purpose-split counts per lesson
+  const enriched = topics.map((t) => ({
+    ...t,
+    lessons: t.lessons.map((l) => {
+      const practiceCount = l.problems.filter((p) => p.purpose === "PRACTICE").length;
+      const assignmentCount = l.problems.filter((p) => p.purpose === "ASSIGNMENT").length;
+      return {
+        id: l.id,
+        title: l.title,
+        slug: l.slug,
+        order: l.order,
+        _count: {
+          problems: l.problems.length,
+          practice: practiceCount,
+          assignment: assignmentCount,
+        },
+      };
+    }),
+  }));
+
+  return Response.json({ topics: enriched });
 }

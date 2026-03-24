@@ -27,6 +27,7 @@ const saveLessonSchema = z.object({
 const saveProblemsSchema = z.object({
   type: z.literal("problems"),
   lessonId: z.string().optional(),
+  purpose: z.enum(["PRACTICE", "ASSIGNMENT"]).default("PRACTICE"),
   data: z.array(problemSchema),
 });
 
@@ -104,13 +105,14 @@ export async function POST(request: NextRequest) {
   }
 
   if (parsed.data.type === "problems") {
-    const { lessonId, data } = parsed.data;
+    const { lessonId, purpose, data } = parsed.data;
 
     const created = [];
     for (const p of data) {
       const problem = await prisma.problem.create({
         data: {
           lessonId: lessonId || null,
+          purpose,
           type: p.type,
           difficulty: p.difficulty,
           content: p.content as never,

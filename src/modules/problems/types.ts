@@ -32,6 +32,10 @@ export interface SubmissionResult {
     progress: number;
     xpToNext: number;
   };
+  coins?: {
+    earned: number;
+    balance: number;
+  };
   streak?: {
     current: number;
     isNewDay: boolean;

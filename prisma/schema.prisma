@@ -33,6 +33,11 @@ enum ProblemType {
   WORKED_SOLUTION
 }
 
+enum ProblemPurpose {
+  PRACTICE
+  ASSIGNMENT
+}
+
 enum ClassRole {
   STUDENT
   TEACHER
@@ -76,6 +81,7 @@ model User {
   challengesCreated      Challenge[]  @relation("ChallengeCreator")
   challengesJoined       Challenge[]  @relation("ChallengeOpponent")
   challengeSubmissions   ChallengeSubmission[]
+  coinTransactions       CoinTransaction[]
 }
 
 model StudentProfile {
@@ -85,6 +91,7 @@ model StudentProfile {
   currentPhase   Phase     @default(FOUNDATIONS)
   xp             Int       @default(0)
   level          Int       @default(1)
+  coins          Int       @default(0)
   streak         Int       @default(0)
   lastActiveDate DateTime?
   preferences    Json?
@@ -148,6 +155,7 @@ model Problem {
   lessonId       String?
   lesson         Lesson?        @relation(fields: [lessonId], references: [id])
   type           ProblemType
+  purpose        ProblemPurpose @default(PRACTICE)
   difficulty     Int
   content        Json
   commonMistakes Json?
@@ -211,6 +219,7 @@ model Class {
   id          String            @id @default(cuid())
   name        String
   code        String            @unique
+  phase       Phase             @default(FOUNDATIONS)
   members     ClassMembership[]
   assignments ClassAssignment[]
   createdAt   DateTime          @default(now())
@@ -233,8 +242,9 @@ model ClassAssignment {
   class      Class     @relation(fields: [classId], references: [id])
   lessonId   String
   lesson     Lesson    @relation(fields: [lessonId], references: [id])
-  problemIds Json?     // Array of selected problem IDs; null = all problems
-  dueDate    DateTime?
+  problemIds    Json?     // Array of selected problem IDs; null = all problems
+  questionCount Int?      // How many questions teacher requested
+  dueDate       DateTime?
   note       String?
   createdAt  DateTime  @default(now())
 
@@ -290,4 +300,22 @@ model ChallengeSubmission {
   createdAt   DateTime  @default(now())
 
   @@unique([challengeId, userId, problemId])
+}
+
+// ── Coins / Wallet ──────────────────────────────────────
+
+enum CoinReason {
+  CORRECT_ANSWER
+  ASSIGNMENT_COMPLETE
+  TOPIC_COMPLETE
+}
+
+model CoinTransaction {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id])
+  amount    Int
+  reason    CoinReason
+  sourceId  String?    // lessonId, assignmentId, or topicId
+  createdAt DateTime   @default(now())
 }

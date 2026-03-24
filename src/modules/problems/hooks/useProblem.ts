@@ -87,6 +87,7 @@ export function useProblem(): UseProblemReturn {
           correctAnswer: data.correctAnswer,
           xpEarned: data.xp?.xpEarned,
           xp: data.xp ?? undefined,
+          coins: data.coins ?? undefined,
           streak: data.streak ?? undefined,
           newBadges: data.newBadges ?? undefined,
         });

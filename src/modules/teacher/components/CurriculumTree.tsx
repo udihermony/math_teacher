@@ -29,7 +29,7 @@ interface LessonNode {
   title: string;
   slug: string;
   order: number;
-  _count: { problems: number };
+  _count: { problems: number; practice: number; assignment: number };
 }
 
 const PHASE_LABELS: Record<string, { label: string; color: string }> = {
@@ -182,9 +182,14 @@ export function CurriculumTree({
                               >
                                 {lesson.title}
                               </Link>
-                              <Badge variant="default">
-                                {lesson._count.problems} problem{lesson._count.problems !== 1 ? "s" : ""}
-                              </Badge>
+                              <span className="flex items-center gap-1">
+                                <Badge variant="success">
+                                  {lesson._count.practice}P
+                                </Badge>
+                                <Badge variant="warning">
+                                  {lesson._count.assignment}A
+                                </Badge>
+                              </span>
                               <Link
                                 href={`/teacher/ai-assistant?action=generate-problems&lessonId=${lesson.id}&lessonTitle=${encodeURIComponent(lesson.title)}&phase=${topic.phase}`}
                                 className="rounded p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary"

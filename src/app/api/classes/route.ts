@@ -49,6 +49,7 @@ export async function GET() {
 
 const createSchema = z.object({
   name: z.string().min(1).max(100),
+  phase: z.enum(["FOUNDATIONS", "EXPLORER", "BUILDER", "CHALLENGER", "IB_READY"]).optional(),
 });
 
 /** POST /api/classes — teacher creates a class. */
@@ -71,6 +72,7 @@ export async function POST(request: NextRequest) {
     data: {
       name: parsed.data.name,
       code,
+      phase: parsed.data.phase ?? "FOUNDATIONS",
       members: {
         create: {
           userId: session.user.id,
