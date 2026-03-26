@@ -1,0 +1,201 @@
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import type { Phase } from "@/generated/prisma/client";
+
+type NodeStatus = "locked" | "available" | "in_progress" | "completed";
+
+/** GET /api/student/quest-road — returns hierarchical quest road data. */
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const userId = session.user.id;
+
+  // Check class membership
+  const membership = await prisma.classMembership.findFirst({
+    where: { userId, role: "STUDENT" },
+    include: { class: true },
+  });
+
+  if (!membership) {
+    return Response.json({ hasClass: false });
+  }
+
+  const startingPhase = membership.class.phase;
+  const phaseOrder: Phase[] = ["FOUNDATIONS", "EXPLORER", "BUILDER", "CHALLENGER", "IB_READY"];
+  const startIndex = phaseOrder.indexOf(startingPhase);
+
+  // Fetch topics from starting phase onward, with lessons and PRACTICE problems
+  const topics = await prisma.topic.findMany({
+    where: {
+      phase: { in: phaseOrder.slice(startIndex) },
+    },
+    include: {
+      lessons: {
+        include: {
+          problems: {
+            where: { purpose: "PRACTICE" },
+            select: { id: true },
+          },
+        },
+        orderBy: { order: "asc" },
+      },
+    },
+    orderBy: [{ phase: "asc" }, { order: "asc" }],
+  });
+
+  // Fetch all submissions for this user
+  const submissions = await prisma.submission.findMany({
+    where: { userId },
+    select: { problemId: true, isCorrect: true },
+  });
+
+  const problemStats = new Map<string, { attempted: boolean; correct: boolean }>();
+  for (const sub of submissions) {
+    const existing = problemStats.get(sub.problemId);
+    if (existing) {
+      existing.correct = existing.correct || sub.isCorrect;
+    } else {
+      problemStats.set(sub.problemId, { attempted: true, correct: sub.isCorrect });
+    }
+  }
+
+  // Fetch student profile
+  const profile = await prisma.studentProfile.findUnique({
+    where: { userId },
+    select: { coins: true, xp: true, level: true, streak: true },
+  });
+
+  // Build hierarchical structure
+  const byPhase = new Map<string, typeof topics>();
+  for (const t of topics) {
+    const list = byPhase.get(t.phase) || [];
+    list.push(t);
+    byPhase.set(t.phase, list);
+  }
+
+  const phases = phaseOrder.slice(startIndex).map((phase) => {
+    const phaseTopics = byPhase.get(phase) || [];
+
+    const questTopics = phaseTopics.map((topic) => {
+      const lessons = topic.lessons.map((lesson) => {
+        const problemIds = lesson.problems.map((p) => p.id);
+        let attempted = 0;
+        let correct = 0;
+        for (const pid of problemIds) {
+          const stat = problemStats.get(pid);
+          if (stat) {
+            attempted++;
+            if (stat.correct) correct++;
+          }
+        }
+
+        let status: NodeStatus;
+        if (problemIds.length === 0) {
+          status = "available";
+        } else if (correct >= problemIds.length) {
+          status = "completed";
+        } else if (attempted > 0) {
+          status = "in_progress";
+        } else {
+          status = "available";
+        }
+
+        return {
+          id: lesson.id,
+          title: lesson.title,
+          order: lesson.order,
+          status,
+          problemCount: problemIds.length,
+          completedProblems: correct,
+        };
+      });
+
+      const completedLessons = lessons.filter((l) => l.status === "completed").length;
+      const hasProgress = lessons.some((l) => l.status === "in_progress" || l.status === "completed");
+
+      let topicStatus: NodeStatus;
+      if (lessons.length > 0 && completedLessons === lessons.length) {
+        topicStatus = "completed";
+      } else if (hasProgress) {
+        topicStatus = "in_progress";
+      } else {
+        topicStatus = "available";
+      }
+
+      return {
+        id: topic.id,
+        name: topic.name,
+        order: topic.order,
+        status: topicStatus,
+        lessons,
+      };
+    });
+
+    const completedTopics = questTopics.filter((t) => t.status === "completed").length;
+    const hasProgress = questTopics.some((t) => t.status === "in_progress" || t.status === "completed");
+
+    let phaseStatus: NodeStatus;
+    if (questTopics.length > 0 && completedTopics === questTopics.length) {
+      phaseStatus = "completed";
+    } else if (hasProgress) {
+      phaseStatus = "in_progress";
+    } else {
+      phaseStatus = "available";
+    }
+
+    return {
+      phase,
+      status: phaseStatus,
+      topics: questTopics,
+    };
+  });
+
+  // Apply sequential locking: lock phases/topics/lessons that aren't reachable yet
+  const mutablePhases = phases as { phase: string; status: NodeStatus; topics: { id: string; name: string; order: number; status: NodeStatus; lessons: { id: string; title: string; order: number; status: NodeStatus; problemCount: number; completedProblems: number }[] }[] }[];
+
+  for (let pi = 0; pi < mutablePhases.length; pi++) {
+    const p = mutablePhases[pi];
+    if (pi > 0 && mutablePhases[pi - 1].status !== "completed") {
+      p.status = "locked";
+      for (const t of p.topics) {
+        t.status = "locked";
+        for (const l of t.lessons) l.status = "locked";
+      }
+      continue;
+    }
+    for (let ti = 0; ti < p.topics.length; ti++) {
+      const t = p.topics[ti];
+      if (ti > 0 && p.topics[ti - 1].status !== "completed") {
+        if (t.status !== "completed" && t.status !== "in_progress") {
+          t.status = "locked";
+          for (const l of t.lessons) l.status = "locked";
+          continue;
+        }
+      }
+      for (let li = 0; li < t.lessons.length; li++) {
+        const l = t.lessons[li];
+        if (li > 0 && t.lessons[li - 1].status !== "completed") {
+          if (l.status !== "completed" && l.status !== "in_progress") {
+            l.status = "locked";
+          }
+        }
+      }
+    }
+  }
+
+  return Response.json({
+    hasClass: true,
+    className: membership.class.name,
+    startingPhase,
+    profile: {
+      coins: profile?.coins ?? 0,
+      xp: profile?.xp ?? 0,
+      level: profile?.level ?? 1,
+      streak: profile?.streak ?? 0,
+    },
+    phases,
+  });
+}
