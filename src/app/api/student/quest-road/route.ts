@@ -24,13 +24,16 @@ export async function GET() {
   }
 
   const startingPhase = membership.class.phase;
+  const endPhase = membership.class.endPhase ?? ("IB_READY" as Phase);
   const phaseOrder: Phase[] = ["FOUNDATIONS", "EXPLORER", "BUILDER", "CHALLENGER", "IB_READY"];
   const startIndex = phaseOrder.indexOf(startingPhase);
+  const endIndex = phaseOrder.indexOf(endPhase);
+  const activePhases = phaseOrder.slice(startIndex, endIndex + 1);
 
-  // Fetch topics from starting phase onward, with lessons and PRACTICE problems
+  // Fetch topics from starting phase to end phase, with lessons and PRACTICE problems
   const topics = await prisma.topic.findMany({
     where: {
-      phase: { in: phaseOrder.slice(startIndex) },
+      phase: { in: activePhases },
     },
     include: {
       lessons: {
@@ -76,7 +79,7 @@ export async function GET() {
     byPhase.set(t.phase, list);
   }
 
-  const phases = phaseOrder.slice(startIndex).map((phase) => {
+  const phases = activePhases.map((phase) => {
     const phaseTopics = byPhase.get(phase) || [];
 
     const questTopics = phaseTopics.map((topic) => {

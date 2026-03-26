@@ -126,8 +126,10 @@ export async function PATCH(
   }
 
   const body = await request.json();
+  const phaseEnum = z.enum(["FOUNDATIONS", "EXPLORER", "BUILDER", "CHALLENGER", "IB_READY"]);
   const parsed = z.object({
-    phase: z.enum(["FOUNDATIONS", "EXPLORER", "BUILDER", "CHALLENGER", "IB_READY"]).optional(),
+    phase: phaseEnum.optional(),
+    endPhase: phaseEnum.optional(),
     name: z.string().min(1).max(100).optional(),
   }).safeParse(body);
 
@@ -139,6 +141,7 @@ export async function PATCH(
     where: { id: classId },
     data: {
       ...(parsed.data.phase && { phase: parsed.data.phase }),
+      ...(parsed.data.endPhase && { endPhase: parsed.data.endPhase }),
       ...(parsed.data.name && { name: parsed.data.name }),
     },
   });

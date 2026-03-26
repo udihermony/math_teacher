@@ -22,8 +22,18 @@ export default function TeacherClassesPage() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
+  const [startPhase, setStartPhase] = useState("FOUNDATIONS");
+  const [endPhase, setEndPhase] = useState("IB_READY");
   const [creating, setCreating] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  const PHASES = [
+    { value: "FOUNDATIONS", label: "Foundations" },
+    { value: "EXPLORER", label: "Explorer" },
+    { value: "BUILDER", label: "Builder" },
+    { value: "CHALLENGER", label: "Challenger" },
+    { value: "IB_READY", label: "IB Ready" },
+  ];
 
   const fetchClasses = useCallback(async () => {
     const res = await fetch("/api/classes");
@@ -44,7 +54,7 @@ export default function TeacherClassesPage() {
     const res = await fetch("/api/classes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName.trim() }),
+      body: JSON.stringify({ name: newName.trim(), phase: startPhase, endPhase }),
     });
     if (res.ok) {
       setNewName("");
@@ -81,16 +91,51 @@ export default function TeacherClassesPage() {
       {showCreate && (
         <Card className="mb-6">
           <h2 className="mb-3 font-semibold">New Class</h2>
-          <div className="flex gap-2">
+          <div className="space-y-3">
             <Input
-              label=""
+              label="Class Name"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="Class name (e.g., Year 10 Maths)"
+              placeholder="e.g., Year 10 Maths"
               onKeyDown={(e) => e.key === "Enter" && createClass()}
             />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium">Start Level</label>
+                <select
+                  value={startPhase}
+                  onChange={(e) => {
+                    setStartPhase(e.target.value);
+                    const pi = PHASES.findIndex((p) => p.value === e.target.value);
+                    const ei = PHASES.findIndex((p) => p.value === endPhase);
+                    if (pi > ei) setEndPhase(e.target.value);
+                  }}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                >
+                  {PHASES.map((p) => (
+                    <option key={p.value} value={p.value}>{p.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">End Level</label>
+                <select
+                  value={endPhase}
+                  onChange={(e) => setEndPhase(e.target.value)}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                >
+                  {PHASES.filter((p) => {
+                    const si = PHASES.findIndex((x) => x.value === startPhase);
+                    const pi = PHASES.findIndex((x) => x.value === p.value);
+                    return pi >= si;
+                  }).map((p) => (
+                    <option key={p.value} value={p.value}>{p.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <Button onClick={createClass} disabled={creating}>
-              {creating ? "Creating..." : "Create"}
+              {creating ? "Creating..." : "Create Class"}
             </Button>
           </div>
         </Card>

@@ -220,6 +220,7 @@ model Class {
   name        String
   code        String            @unique
   phase       Phase             @default(FOUNDATIONS)
+  endPhase    Phase             @default(IB_READY)
   members     ClassMembership[]
   assignments ClassAssignment[]
   createdAt   DateTime          @default(now())

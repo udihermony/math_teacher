@@ -47,9 +47,12 @@ export async function GET() {
   return Response.json({ classes });
 }
 
+const phaseEnum = z.enum(["FOUNDATIONS", "EXPLORER", "BUILDER", "CHALLENGER", "IB_READY"]);
+
 const createSchema = z.object({
   name: z.string().min(1).max(100),
-  phase: z.enum(["FOUNDATIONS", "EXPLORER", "BUILDER", "CHALLENGER", "IB_READY"]).optional(),
+  phase: phaseEnum.optional(),
+  endPhase: phaseEnum.optional(),
 });
 
 /** POST /api/classes — teacher creates a class. */
@@ -73,6 +76,7 @@ export async function POST(request: NextRequest) {
       name: parsed.data.name,
       code,
       phase: parsed.data.phase ?? "FOUNDATIONS",
+      endPhase: parsed.data.endPhase ?? "IB_READY",
       members: {
         create: {
           userId: session.user.id,
