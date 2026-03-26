@@ -83,6 +83,38 @@ export async function askClaude({
   };
 }
 
+export interface AgentOptions {
+  userId: string;
+  systemPrompt: string;
+  messages: Anthropic.MessageParam[];
+  tools: Anthropic.Tool[];
+  maxTokens?: number;
+}
+
+export async function agentClaude({
+  userId,
+  systemPrompt,
+  messages,
+  tools,
+  maxTokens = 2048,
+}: AgentOptions): Promise<Anthropic.Message> {
+  if (!rateLimiter.check(userId)) {
+    throw new Error("Rate limit exceeded. Please wait a moment.");
+  }
+
+  rateLimiter.record(userId);
+
+  const anthropic = getClient();
+
+  return anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: maxTokens,
+    system: systemPrompt,
+    messages,
+    tools,
+  });
+}
+
 export async function* streamClaude({
   userId,
   systemPrompt,

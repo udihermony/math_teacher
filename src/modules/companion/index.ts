@@ -3,3 +3,5 @@ export { CompanionChat } from "./CompanionChat";
 export { CompanionBubble } from "./CompanionBubble";
 export { useCompanion } from "./hooks/useCompanion";
 export { useCompanionChat } from "./hooks/useCompanionChat";
+export { ExplanationPopup } from "./ExplanationPopup";
+export { ExplanationRenderer } from "./ExplanationRenderer";

@@ -126,6 +126,19 @@ export function buildContextPrompt(context: {
   return parts.join("\n");
 }
 
+// ── Tool-use layer ───────────────────────────────────────
+
+export const TOOL_USE_PROMPT = `TOOL USE GUIDELINES:
+You have access to tools. Use them when they would genuinely help the student.
+
+- generate_explanation: Use when a student needs a detailed, structured walkthrough of a concept or problem. This opens a popup with formatted steps and LaTeX. Don't use it for simple clarifications — only for multi-step explanations where visual structure helps.
+- request_animation: Use when a visual/animated explanation would clarify a spatial or dynamic concept (geometry, graph transformations, function behavior). Don't use for pure arithmetic.
+- lookup_curriculum: Use when you need to check prerequisite skills, find related lessons, or understand where a topic fits in the curriculum. Great for recommending what to study next.
+
+After using a tool, incorporate its results naturally into your response. Don't say "I used a tool" — just present the information naturally.
+When an explanation is generated, mention it to the student so they know to look for it: "I've put together a step-by-step explanation for you — check the popup!"
+Keep your conversational responses concise even when tools provide detailed content.`;
+
 /**
  * Assemble the full system prompt for Pi.
  */
@@ -146,6 +159,7 @@ export function assembleCompanionPrompt(context: {
     BASE_PROMPT,
     personality,
     PEDAGOGICAL_PROMPT,
+    TOOL_USE_PROMPT,
     buildContextPrompt(context),
   ].join("\n\n");
 }

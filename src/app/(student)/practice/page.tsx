@@ -72,7 +72,7 @@ function PracticeInner() {
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [solvedIds, setSolvedIds] = useState<Set<string>>(new Set());
   const [retaking, setRetaking] = useState(false);
-  const { setProblemContext, showHint } = useCompanion();
+  const { setProblemContext, setLessonContext, showHint } = useCompanion();
 
   // Gamification state
   const [showLevelUp, setShowLevelUp] = useState(false);
@@ -84,6 +84,12 @@ function PracticeInner() {
   const [currentStreak, setCurrentStreak] = useState({ streak: 0, isActiveToday: false });
   const [coinBalance, setCoinBalance] = useState(0);
   const [lastCoinsEarned, setLastCoinsEarned] = useState(0);
+
+  // Set lesson context for companion chat persistence
+  useEffect(() => {
+    setLessonContext(lessonId);
+    return () => setLessonContext(null);
+  }, [lessonId, setLessonContext]);
 
   // Load problems
   useEffect(() => {

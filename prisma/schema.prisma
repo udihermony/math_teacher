@@ -82,6 +82,7 @@ model User {
   challengesJoined       Challenge[]  @relation("ChallengeOpponent")
   challengeSubmissions   ChallengeSubmission[]
   coinTransactions       CoinTransaction[]
+  conversations          Conversation[]
 }
 
 model StudentProfile {
@@ -115,8 +116,9 @@ model Topic {
   description String?
   order       Int
   iconUrl     String?
-  lessons     Lesson[]
-  skills      Skill[]
+  lessons       Lesson[]
+  skills        Skill[]
+  conversations Conversation[]
 }
 
 model Lesson {
@@ -129,9 +131,10 @@ model Lesson {
   content     Json
   order       Int
   xpReward    Int      @default(10)
-  problems    Problem[]
-  assignments ClassAssignment[]
-  createdById String?
+  problems      Problem[]
+  assignments   ClassAssignment[]
+  conversations Conversation[]
+  createdById   String?
   createdBy   User?    @relation("CreatedBy", fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -162,6 +165,7 @@ model Problem {
   solution       Json?
   skills         ProblemSkill[]
   submissions    Submission[]
+  explanations   Explanation[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 }
@@ -321,4 +325,49 @@ model CoinTransaction {
   reason    CoinReason
   sourceId  String?    // lessonId, assignmentId, or topicId
   createdAt DateTime   @default(now())
+}
+
+// ── AI Tutor Conversations ──────────────────────────────
+
+model Conversation {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  lessonId  String?
+  lesson    Lesson?   @relation(fields: [lessonId], references: [id])
+  topicId   String?
+  topic     Topic?    @relation(fields: [topicId], references: [id])
+  summary   String?   @db.Text
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  messages  Message[]
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String       // "user" | "assistant" | "system"
+  content        String       @db.Text
+  metadata       Json?        // problemId context, token usage, tool calls
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model Explanation {
+  id             String   @id @default(cuid())
+  conversationId String?
+  problemId      String?
+  problem        Problem? @relation(fields: [problemId], references: [id])
+  title          String
+  content        Json     // [{type:"step"|"latex"|"text"|"video", data:...}]
+  animationUrl   String?
+  manimCode      String?  @db.Text
+  createdAt      DateTime @default(now())
+
+  @@index([problemId])
 }

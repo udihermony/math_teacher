@@ -2,14 +2,37 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Send, X, Trash2 } from "lucide-react";
+import { Send, X, Trash2, BookOpen } from "lucide-react";
 import { useCompanionChat } from "./hooks/useCompanionChat";
 import { useCompanion } from "./hooks/useCompanion";
 import { Spinner } from "@/components/ui/Spinner";
 
+function renderMessageContent(content: string, onExplanation: (id: string) => void) {
+  // Detect [EXPLANATION:id] markers
+  const parts = content.split(/\[EXPLANATION:([^\]]+)\]/g);
+  if (parts.length === 1) return content;
+
+  return parts.map((part, i) => {
+    if (i % 2 === 1) {
+      // This is an explanation ID
+      return (
+        <button
+          key={i}
+          onClick={() => onExplanation(part)}
+          className="mt-1 flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+        >
+          <BookOpen size={12} />
+          View Explanation
+        </button>
+      );
+    }
+    return part || null;
+  });
+}
+
 export function CompanionChat() {
-  const { isOpen, close, currentProblemId } = useCompanion();
-  const { messages, isStreaming, error, sendMessage, clearMessages } =
+  const { isOpen, close, currentProblemId, openExplanation } = useCompanion();
+  const { messages, isStreaming, isLoadingHistory, error, sendMessage, clearMessages } =
     useCompanionChat(currentProblemId ?? undefined);
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -77,7 +100,13 @@ export function CompanionChat() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.length === 0 && (
+        {isLoadingHistory && (
+          <div className="flex items-center justify-center py-4">
+            <Spinner size="sm" />
+          </div>
+        )}
+
+        {!isLoadingHistory && messages.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-2xl">
               🧮
@@ -104,7 +133,11 @@ export function CompanionChat() {
                   : "bg-secondary text-secondary-foreground rounded-bl-md"
               }`}
             >
-              {msg.content || (
+              {msg.content ? (
+                msg.role === "assistant"
+                  ? renderMessageContent(msg.content, openExplanation)
+                  : msg.content
+              ) : (
                 <Spinner size="sm" />
               )}
             </div>

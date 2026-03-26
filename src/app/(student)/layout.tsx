@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { StudentSidebar } from "@/components/layout/Sidebar";
 import { ThemeProvider } from "@/modules/theme";
-import { CompanionWidget } from "@/modules/companion";
+import { CompanionWidget, ExplanationPopup } from "@/modules/companion";
 
 export default async function StudentLayout({
   children,
@@ -25,6 +25,7 @@ export default async function StudentLayout({
         <StudentSidebar user={session.user} />
         <main id="main-content" className="flex-1 p-6">{children}</main>
         <CompanionWidget />
+        <ExplanationPopup />
       </div>
     </ThemeProvider>
   );

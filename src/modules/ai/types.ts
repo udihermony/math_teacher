@@ -26,3 +26,14 @@ export interface AIResponse {
     outputTokens: number;
   };
 }
+
+export interface ExplanationBlock {
+  type: "text" | "step" | "latex" | "hint" | "video";
+  data: string;
+  number?: number;
+}
+
+export interface TutorToolResult {
+  toolName: string;
+  result: unknown;
+}

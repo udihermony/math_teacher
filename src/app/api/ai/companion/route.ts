@@ -1,18 +1,14 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { streamClaude } from "@/modules/ai/claude-client";
-import { buildCompanionContext } from "@/modules/ai/context-builder";
-import { assembleCompanionPrompt } from "@/modules/ai/prompts/companion";
+import { prisma } from "@/lib/db";
+import { runTutorAgent } from "@/modules/ai/tutor-agent";
 
 const chatSchema = z.object({
-  messages: z.array(
-    z.object({
-      role: z.enum(["user", "assistant"]),
-      content: z.string(),
-    })
-  ),
+  message: z.string().min(1),
+  conversationId: z.string().optional(),
   currentProblemId: z.string().optional(),
+  lessonId: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -27,44 +23,86 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Invalid input" }, { status: 400 });
   }
 
-  const { messages, currentProblemId } = parsed.data;
+  const { message, conversationId, currentProblemId, lessonId } = parsed.data;
+  const userId = session.user.id;
 
-  // Build context from student data
-  const context = await buildCompanionContext(
-    session.user.id,
-    currentProblemId
-  );
+  // Find or create conversation
+  let convo;
+  if (conversationId) {
+    convo = await prisma.conversation.findFirst({
+      where: { id: conversationId, userId },
+    });
+  }
 
-  // Assemble the full system prompt
-  const systemPrompt = assembleCompanionPrompt(context);
+  if (!convo && lessonId) {
+    convo = await prisma.conversation.findUnique({
+      where: { userId_lessonId: { userId, lessonId } },
+    });
+  }
 
-  // Stream the response
+  if (!convo) {
+    let topicId: string | undefined;
+    if (lessonId) {
+      const lesson = await prisma.lesson.findUnique({
+        where: { id: lessonId },
+        select: { topicId: true },
+      });
+      topicId = lesson?.topicId;
+    }
+
+    convo = await prisma.conversation.create({
+      data: {
+        userId,
+        lessonId: lessonId ?? null,
+        topicId: topicId ?? null,
+      },
+    });
+  }
+
+  const convoId = convo.id;
+
+  // Run the tutor agent
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        const generator = streamClaude({
-          userId: session.user!.id,
-          systemPrompt,
-          messages,
-          maxTokens: 1024,
+        const result = await runTutorAgent({
+          userId,
+          conversationId: convoId,
+          userMessage: message,
+          currentProblemId,
         });
 
-        for await (const chunk of generator) {
+        // Stream text chunks
+        for await (const chunk of result.stream) {
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`)
           );
         }
 
+        // Send side effects (explanations, animations)
+        for (const effect of result.sideEffects) {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(effect)}\n\n`)
+          );
+        }
+
+        // Send conversation ID
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({ conversationId: convoId })}\n\n`
+          )
+        );
+
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
       } catch (error) {
-        const message =
+        const errMessage =
           error instanceof Error ? error.message : "An error occurred";
         controller.enqueue(
           encoder.encode(
-            `data: ${JSON.stringify({ error: message })}\n\n`
+            `data: ${JSON.stringify({ error: errMessage })}\n\n`
           )
         );
         controller.close();
