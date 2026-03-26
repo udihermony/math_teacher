@@ -6,7 +6,7 @@ import { signOut } from "next-auth/react";
 import {
   Map,
   Dumbbell,
-  Swords,
+  MessageCircle,
   User,
   UserPlus,
   Settings,
@@ -86,7 +86,7 @@ export function StudentSidebar({ user }: SidebarProps) {
     { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
     { href: "/quest-map", label: "Quest Road", icon: <Map size={18} /> },
     { href: "/practice", label: "Practice", icon: <Dumbbell size={18} /> },
-    { href: "/challenge", label: "Challenges", icon: <Swords size={18} /> },
+    { href: "/pi", label: "Pi Tutor", icon: <MessageCircle size={18} /> },
     { href: "/friends", label: "Friends", icon: <UserPlus size={18} /> },
     { href: "/classes", label: "Classes", icon: <GraduationCap size={18} /> },
     { href: "/ib-prep", label: "IB Prep", icon: <FileText size={18} /> },

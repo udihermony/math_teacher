@@ -6,9 +6,9 @@ import { runTutorAgent } from "@/modules/ai/tutor-agent";
 
 const chatSchema = z.object({
   message: z.string().min(1),
-  conversationId: z.string().optional(),
-  currentProblemId: z.string().optional(),
-  lessonId: z.string().optional(),
+  conversationId: z.string().nullish(),
+  currentProblemId: z.string().nullish(),
+  lessonId: z.string().nullish(),
 });
 
 export async function POST(request: NextRequest) {
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
           userId,
           conversationId: convoId,
           userMessage: message,
-          currentProblemId,
+          currentProblemId: currentProblemId ?? undefined,
         });
 
         // Stream text chunks

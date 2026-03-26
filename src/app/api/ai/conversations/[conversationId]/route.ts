@@ -30,6 +30,7 @@ export async function GET(
 
   return Response.json({
     id: conversation.id,
+    title: conversation.title,
     lessonId: conversation.lessonId,
     lessonTitle: conversation.lesson?.title ?? null,
     topicName: conversation.topic?.name ?? null,

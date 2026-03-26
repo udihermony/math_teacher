@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
   return Response.json(
     conversations.map((c) => ({
       id: c.id,
+      title: c.title,
       lessonId: c.lessonId,
       lessonTitle: c.lesson?.title ?? null,
       topicName: c.topic?.name ?? null,

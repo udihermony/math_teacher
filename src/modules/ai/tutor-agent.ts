@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/db";
-import { agentClaude, streamClaude } from "./claude-client";
+import { agentClaude, askClaude, streamClaude } from "./claude-client";
 import { buildCompanionContext } from "./context-builder";
 import { assembleCompanionPrompt } from "./prompts/companion";
 import { TUTOR_TOOLS, executeTool } from "./tools/tutor-tools";
@@ -128,6 +128,11 @@ export async function runTutorAgent(
         data: { updatedAt: new Date() },
       });
 
+      // Generate title if this is the first exchange
+      if (!convo?.title) {
+        generateConversationTitle(userId, conversationId, userMessage, textContent).catch(() => {});
+      }
+
       // Create a simple generator that yields the text
       async function* yieldText() {
         yield textContent;
@@ -217,7 +222,43 @@ export async function runTutorAgent(
       where: { id: conversationId },
       data: { updatedAt: new Date() },
     });
+
+    if (!convo?.title) {
+      generateConversationTitle(userId, conversationId, userMessage, fullText).catch(() => {});
+    }
   }
 
   return { stream: streamAndPersist(), sideEffects };
+}
+
+/**
+ * Generate a short title for a conversation based on the first exchange.
+ * Runs asynchronously — does not block the response.
+ */
+async function generateConversationTitle(
+  userId: string,
+  conversationId: string,
+  userMessage: string,
+  assistantResponse: string
+): Promise<void> {
+  const response = await askClaude({
+    userId,
+    systemPrompt:
+      "Generate a very short title (3-6 words, no quotes) for this tutoring conversation based on the student's question. Examples: 'What Are Decimal Numbers', 'Adding Fractions Help', 'Solving for X'. Return ONLY the title, nothing else.",
+    messages: [
+      {
+        role: "user",
+        content: `Student: ${userMessage}\n\nTutor: ${assistantResponse.slice(0, 200)}`,
+      },
+    ],
+    maxTokens: 30,
+  });
+
+  const title = response.content.trim().replace(/^["']|["']$/g, "");
+  if (title) {
+    await prisma.conversation.update({
+      where: { id: conversationId },
+      data: { title },
+    });
+  }
 }

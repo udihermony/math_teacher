@@ -2,19 +2,27 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
+import ReactMarkdown from "react-markdown";
 import { Send, X, Trash2, BookOpen } from "lucide-react";
 import { useCompanionChat } from "./hooks/useCompanionChat";
 import { useCompanion } from "./hooks/useCompanion";
 import { Spinner } from "@/components/ui/Spinner";
 
+function MarkdownContent({ content }: { content: string }) {
+  return (
+    <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1 [&>p:last-child]:mb-0 [&>p:first-child]:mt-0">
+      <ReactMarkdown>{content}</ReactMarkdown>
+    </div>
+  );
+}
+
 function renderMessageContent(content: string, onExplanation: (id: string) => void) {
   // Detect [EXPLANATION:id] markers
   const parts = content.split(/\[EXPLANATION:([^\]]+)\]/g);
-  if (parts.length === 1) return content;
+  if (parts.length === 1) return <MarkdownContent content={content} />;
 
   return parts.map((part, i) => {
     if (i % 2 === 1) {
-      // This is an explanation ID
       return (
         <button
           key={i}
@@ -26,7 +34,7 @@ function renderMessageContent(content: string, onExplanation: (id: string) => vo
         </button>
       );
     }
-    return part || null;
+    return part ? <MarkdownContent key={i} content={part} /> : null;
   });
 }
 

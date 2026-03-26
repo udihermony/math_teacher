@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "export-content": "npx tsx scripts/export-content.ts",
+    "import-content": "npx tsx scripts/import-content.ts",
+    "import-export": "npx tsx scripts/import-from-export.ts"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
@@ -14,6 +17,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
     "@prisma/client": "^6.19.2",
+    "@tailwindcss/typography": "^0.5.19",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.3.1",
     "framer-motion": "^12.38.0",
@@ -24,6 +28,7 @@
     "prisma": "^6.19.2",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-markdown": "^10.1.0",
     "zod": "^4.3.6",
     "zustand": "^5.0.12"
   },
