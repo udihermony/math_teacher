@@ -5,6 +5,8 @@ import Link from "next/link";
 import {
   Lock,
   Check,
+  ChevronDown,
+  ClipboardList,
   Crown,
   Star,
   BookOpen,
@@ -12,6 +14,7 @@ import {
   Coins,
   Flame,
   Zap,
+  Trophy,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -24,6 +27,9 @@ interface QuestLesson {
   status: "locked" | "available" | "in_progress" | "completed";
   problemCount: number;
   completedProblems: number;
+  hasQuiz: boolean;
+  quizCompleted: boolean;
+  coins: { earned: number; total: number };
 }
 
 interface QuestTopic {
@@ -32,12 +38,14 @@ interface QuestTopic {
   order: number;
   status: "locked" | "available" | "in_progress" | "completed";
   lessons: QuestLesson[];
+  coins: { earned: number; total: number };
 }
 
 interface QuestPhase {
   phase: string;
   status: "locked" | "available" | "in_progress" | "completed";
   topics: QuestTopic[];
+  coins: { earned: number; total: number };
 }
 
 interface QuestData {
@@ -46,6 +54,8 @@ interface QuestData {
   startingPhase?: string;
   profile?: { coins: number; xp: number; level: number; streak: number };
   phases?: QuestPhase[];
+  totalCoins?: { earned: number; total: number };
+  finalTest?: { unlocked: boolean; completed: boolean; coins: number };
 }
 
 // ── Constants ────────────────────────────────────────
@@ -66,12 +76,12 @@ const PHASE_COLORS: Record<string, { bg: string; ring: string; text: string }> =
   IB_READY: { bg: "bg-red-500", ring: "ring-red-400", text: "text-red-500" },
 };
 
-const NODE_STATUS_BG: Record<string, string> = {
-  locked: "bg-muted text-muted-foreground",
-  available: "bg-card border-2 border-primary text-foreground",
-  in_progress: "bg-card border-2 border-primary text-foreground",
-  completed: "bg-green-500 text-white",
-};
+// ── Helpers ──────────────────────────────────────────
+
+function pct(earned: number, total: number) {
+  if (total === 0) return 0;
+  return Math.round((earned / total) * 100);
+}
 
 // ── Component ────────────────────────────────────────
 
@@ -105,7 +115,7 @@ export function QuestRoad() {
     return <JoinClassPrompt />;
   }
 
-  const { profile, phases = [], className } = data;
+  const { profile, phases = [], className, totalCoins, finalTest } = data;
 
   return (
     <div>
@@ -118,6 +128,27 @@ export function QuestRoad() {
             <StatBadge icon={<Zap size={14} />} label={`Lv ${profile.level}`} color="text-primary" />
             <StatBadge icon={<Flame size={14} />} label={`${profile.streak}d`} color="text-orange-500" />
             <StatBadge icon={<Star size={14} />} label={`${profile.xp} XP`} color="text-blue-500" />
+          </div>
+        )}
+
+        {/* Overall coins progress */}
+        {totalCoins && totalCoins.total > 0 && (
+          <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/20">
+            <div className="flex items-center justify-between text-sm">
+              <span className="flex items-center gap-1.5 font-medium text-amber-700 dark:text-amber-400">
+                <Coins size={14} />
+                Quest Coins
+              </span>
+              <span className="font-bold text-amber-700 dark:text-amber-400">
+                {totalCoins.earned}/{totalCoins.total} ({pct(totalCoins.earned, totalCoins.total)}%)
+              </span>
+            </div>
+            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-amber-200 dark:bg-amber-900/40">
+              <div
+                className="h-full rounded-full bg-amber-500 transition-all duration-500"
+                style={{ width: `${pct(totalCoins.earned, totalCoins.total)}%` }}
+              />
+            </div>
           </div>
         )}
       </div>
@@ -137,18 +168,54 @@ export function QuestRoad() {
             />
           ))}
 
-          {/* Final quest goal */}
-          <div className="relative flex items-center gap-4 pl-0">
-            <div className="relative z-10 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg shadow-amber-500/30">
-              <Crown size={24} />
-            </div>
-            <div>
-              <p className="font-bold text-amber-600">Quest Complete!</p>
-              <p className="text-xs text-muted-foreground">Master all levels</p>
-            </div>
-          </div>
+          {/* Final test */}
+          <FinalTestNode finalTest={finalTest} />
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Final Test Node ─────────────────────────────────
+
+function FinalTestNode({ finalTest }: { finalTest?: QuestData["finalTest"] }) {
+  const unlocked = finalTest?.unlocked ?? false;
+  const completed = finalTest?.completed ?? false;
+  const bonus = finalTest?.coins ?? 50;
+
+  return (
+    <div className="relative flex items-center gap-4 pl-0">
+      <div
+        className={`relative z-10 flex h-14 w-14 items-center justify-center rounded-full shadow-lg ${
+          completed
+            ? "bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-amber-500/30"
+            : unlocked
+            ? "bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-amber-500/30 animate-pulse"
+            : "bg-muted text-muted-foreground shadow-none"
+        }`}
+      >
+        {completed ? <Check size={24} strokeWidth={3} /> : <Trophy size={24} />}
+      </div>
+      <div className="flex-1">
+        <p className={`font-bold ${completed ? "text-amber-600" : unlocked ? "text-amber-600" : "text-muted-foreground"}`}>
+          Final Quest Test
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {completed
+            ? "Completed! Quest mastered!"
+            : unlocked
+            ? "All levels complete — take the final test!"
+            : "Complete all levels to unlock"}
+        </p>
+      </div>
+      <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${
+        completed
+          ? "bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+          : "bg-muted text-muted-foreground"
+      }`}>
+        <Coins size={11} />
+        {completed ? bonus : 0}/{bonus}
+      </span>
     </div>
   );
 }
@@ -166,16 +233,23 @@ function PhaseSection({
 }) {
   const colors = PHASE_COLORS[phase.phase] || PHASE_COLORS.FOUNDATIONS;
   const isActive = phase.status === "in_progress" || phase.status === "available";
+  const [expanded, setExpanded] = useState(
+    phase.status === "in_progress" || phase.status === "available"
+  );
+
+  const completedTopics = phase.topics.filter((t) => t.status === "completed").length;
+  const progressPct = phase.topics.length > 0 ? pct(completedTopics, phase.topics.length) : 0;
 
   return (
     <div className="mb-2">
-      {/* Phase node (biggest circle) */}
-      <div
-        ref={isActive ? activeRef : undefined}
-        className="relative flex items-center gap-4 pl-0 mb-4"
+      {/* Phase node */}
+      <div ref={isActive ? activeRef : undefined}>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="relative flex w-full items-center gap-4 pl-0 mb-4 text-left"
       >
         <div
-          className={`relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white shadow-lg ${
+          className={`relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white shadow-lg transition-transform ${
             phase.status === "locked"
               ? "bg-muted text-muted-foreground shadow-none"
               : phase.status === "completed"
@@ -193,29 +267,46 @@ function PhaseSection({
             </span>
           )}
         </div>
-        <div>
+        <div className="flex-1">
           <p className={`text-lg font-bold ${phase.status === "locked" ? "text-muted-foreground" : ""}`}>
             {PHASE_LABELS[phase.phase]}
           </p>
           <p className="text-xs text-muted-foreground">
-            {phase.topics.length} topic{phase.topics.length !== 1 ? "s" : ""}
+            {completedTopics}/{phase.topics.length} topics
+            {phase.status !== "locked" && ` · ${progressPct}%`}
             {phase.status === "completed" && " · Completed"}
           </p>
         </div>
+
+        {/* Phase coins */}
+        {phase.status !== "locked" && (
+          <span className={`flex items-center gap-1 text-xs font-medium ${phase.coins.earned > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
+            <Coins size={12} />
+            {phase.coins.earned}/{phase.coins.total}
+          </span>
+        )}
+
+        <ChevronDown
+          size={18}
+          className={`text-muted-foreground transition-transform ${expanded ? "" : "-rotate-90"}`}
+        />
+      </button>
       </div>
 
       {/* Topics within this phase */}
-      <div className="ml-3 space-y-1">
-        {phase.topics.map((topic, topicIdx) => (
-          <TopicSection
-            key={topic.id}
-            topic={topic}
-            phase={phase.phase}
-            isLastTopic={topicIdx === phase.topics.length - 1 && isLast}
-            activeRef={activeRef}
-          />
-        ))}
-      </div>
+      {expanded && (
+        <div className="ml-3 space-y-1">
+          {phase.topics.map((topic, topicIdx) => (
+            <TopicSection
+              key={topic.id}
+              topic={topic}
+              phase={phase.phase}
+              isLastTopic={topicIdx === phase.topics.length - 1 && isLast}
+              activeRef={activeRef}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -239,20 +330,18 @@ function TopicSection({
   const colors = PHASE_COLORS[phase] || PHASE_COLORS.FOUNDATIONS;
   const isActive = topic.status === "in_progress" || topic.status === "available";
   const completedLessons = topic.lessons.filter((l) => l.status === "completed").length;
+  const progressPct = topic.lessons.length > 0 ? pct(completedLessons, topic.lessons.length) : 0;
 
   return (
     <div className="mb-3">
-      {/* Topic node (medium circle) */}
+      {/* Topic node */}
       <div ref={isActive && topic.status === "in_progress" ? activeRef : undefined}>
       <button
-        onClick={() => topic.status !== "locked" && setExpanded(!expanded)}
-        disabled={topic.status === "locked"}
+        onClick={() => setExpanded(!expanded)}
         className="relative flex w-full items-center gap-3 pl-1 text-left"
       >
         <div className="relative flex items-center">
-          {/* Connector line */}
           <div className="absolute left-[18px] -top-4 h-4 w-0.5 bg-border" />
-
           <div
             className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold shadow-md transition-transform ${
               topic.status === "locked"
@@ -276,18 +365,23 @@ function TopicSection({
           <p className={`text-sm font-semibold truncate ${topic.status === "locked" ? "text-muted-foreground" : ""}`}>
             {topic.name}
           </p>
-          <p className="text-xs text-muted-foreground">
-            {completedLessons}/{topic.lessons.length} lessons
-          </p>
+          <span className="text-xs text-muted-foreground">
+            {completedLessons}/{topic.lessons.length} lessons &middot; {progressPct}%
+          </span>
+          {topic.status !== "locked" && (
+            <span className={`ml-1 inline-flex items-center gap-0.5 text-xs ${topic.coins.earned > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
+              &middot; <Coins size={10} /> {topic.coins.earned}/{topic.coins.total}
+            </span>
+          )}
         </div>
 
-        {/* Progress indicator */}
+        {/* Progress bar */}
         {topic.status !== "locked" && topic.lessons.length > 0 && (
           <div className="w-16">
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
               <div
                 className="h-full rounded-full bg-green-500 transition-all duration-500"
-                style={{ width: `${(completedLessons / topic.lessons.length) * 100}%` }}
+                style={{ width: `${progressPct}%` }}
               />
             </div>
           </div>
@@ -295,8 +389,8 @@ function TopicSection({
       </button>
       </div>
 
-      {/* Lessons (expanded) */}
-      {expanded && topic.status !== "locked" && (
+      {/* Lessons */}
+      {expanded && (
         <div className="ml-6 mt-2 space-y-1 border-l border-border pl-4">
           {topic.lessons.map((lesson, lessonIdx) => (
             <LessonNode
@@ -323,9 +417,11 @@ function LessonNode({
   phase: string;
   isLast: boolean;
 }) {
+  const progressPct = lesson.problemCount > 0 ? pct(lesson.completedProblems, lesson.problemCount) : 0;
+
   const content = (
     <div
-      className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
+      className={`rounded-lg px-3 py-2 transition-colors ${
         lesson.status === "locked"
           ? "opacity-50"
           : lesson.status === "completed"
@@ -333,39 +429,66 @@ function LessonNode({
           : "hover:bg-secondary"
       }`}
     >
-      {/* Small circle */}
-      <div
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs ${
-          lesson.status === "locked"
-            ? "bg-muted text-muted-foreground"
-            : lesson.status === "completed"
-            ? "bg-green-500 text-white"
-            : lesson.status === "in_progress"
-            ? "border-2 border-primary bg-card text-primary"
-            : "border-2 border-border bg-card text-muted-foreground"
-        }`}
-      >
-        {lesson.status === "locked" ? (
-          <Lock size={12} />
-        ) : lesson.status === "completed" ? (
-          <Check size={14} strokeWidth={3} />
-        ) : (
-          <span className="text-xs font-bold">{lesson.order}</span>
+      <div className="flex items-center gap-3">
+        {/* Small circle */}
+        <div
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs ${
+            lesson.status === "locked"
+              ? "bg-muted text-muted-foreground"
+              : lesson.status === "completed"
+              ? "bg-green-500 text-white"
+              : lesson.status === "in_progress"
+              ? "border-2 border-primary bg-card text-primary"
+              : "border-2 border-border bg-card text-muted-foreground"
+          }`}
+        >
+          {lesson.status === "locked" ? (
+            <Lock size={12} />
+          ) : lesson.status === "completed" ? (
+            <Check size={14} strokeWidth={3} />
+          ) : (
+            <span className="text-xs font-bold">{lesson.order}</span>
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm truncate ${lesson.status === "locked" ? "text-muted-foreground" : lesson.status === "completed" ? "text-muted-foreground" : "text-foreground"}`}>
+            {lesson.title}
+          </p>
+        </div>
+
+        {/* Lesson progress % */}
+        {lesson.status !== "locked" && lesson.problemCount > 0 && (
+          <span className={`text-xs font-medium ${lesson.status === "completed" ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}>
+            {progressPct}%
+          </span>
         )}
       </div>
 
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm truncate ${lesson.status === "locked" ? "text-muted-foreground" : lesson.status === "completed" ? "text-muted-foreground" : "text-foreground"}`}>
-          {lesson.title}
-        </p>
-      </div>
+      {/* Lesson details row */}
+      <div className="ml-10 mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+        {/* Practice progress */}
+        {lesson.problemCount > 0 && (
+          <span className="flex items-center gap-1">
+            <BookOpen size={11} />
+            {lesson.completedProblems}/{lesson.problemCount}
+          </span>
+        )}
 
-      {/* Problem progress */}
-      {lesson.status !== "locked" && lesson.problemCount > 0 && (
-        <span className="text-xs text-muted-foreground">
-          {lesson.completedProblems}/{lesson.problemCount}
+        {/* Quiz status */}
+        {lesson.hasQuiz && (
+          <span className={`flex items-center gap-1 ${lesson.quizCompleted ? "text-green-500" : ""}`}>
+            {lesson.quizCompleted ? <Check size={11} strokeWidth={3} /> : <ClipboardList size={11} />}
+            Quiz {lesson.quizCompleted ? "passed" : "0/1"}
+          </span>
+        )}
+
+        {/* Coins */}
+        <span className={`flex items-center gap-1 ${lesson.coins.earned > 0 ? "text-amber-500" : ""}`}>
+          <Coins size={11} />
+          {lesson.coins.earned}/{lesson.coins.total}
         </span>
-      )}
+      </div>
     </div>
   );
 

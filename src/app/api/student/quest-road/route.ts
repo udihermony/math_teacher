@@ -65,11 +65,43 @@ export async function GET() {
     }
   }
 
-  // Fetch student profile
-  const profile = await prisma.studentProfile.findUnique({
-    where: { userId },
-    select: { coins: true, xp: true, level: true, streak: true },
-  });
+  // Fetch student profile, class assignments, and coin transactions
+  const [profile, classAssignments, coinTransactions] = await Promise.all([
+    prisma.studentProfile.findUnique({
+      where: { userId },
+      select: { coins: true, xp: true, level: true, streak: true },
+    }),
+    prisma.classAssignment.findMany({
+      where: { classId: membership.classId },
+      include: { lesson: { include: { problems: { select: { id: true } } } } },
+    }),
+    prisma.coinTransaction.findMany({
+      where: { userId },
+      select: { reason: true, sourceId: true, amount: true },
+    }),
+  ]);
+
+  // Build assignment map: lessonId -> { assignmentId, problemIds }
+  const assignmentByLesson = new Map<string, { id: string; problemIds: string[] }>();
+  for (const a of classAssignments) {
+    const ids = (a.problemIds as string[] | null) ?? a.lesson.problems.map((p) => p.id);
+    assignmentByLesson.set(a.lessonId, { id: a.id, problemIds: ids });
+  }
+
+  // Build coin maps: lessonId -> practice coins earned, assignmentId -> bonus earned
+  const practiceCoins = new Map<string, number>();
+  const assignmentBonusEarned = new Set<string>();
+  for (const tx of coinTransactions) {
+    if (tx.reason === "CORRECT_ANSWER" && tx.sourceId) {
+      practiceCoins.set(tx.sourceId, (practiceCoins.get(tx.sourceId) ?? 0) + tx.amount);
+    }
+    if (tx.reason === "ASSIGNMENT_COMPLETE" && tx.sourceId) {
+      assignmentBonusEarned.add(tx.sourceId);
+    }
+  }
+
+  const MAX_PRACTICE_COINS = 10;
+  const QUIZ_BONUS = 5;
 
   // Build hierarchical structure
   const byPhase = new Map<string, typeof topics>();
@@ -106,6 +138,20 @@ export async function GET() {
           status = "available";
         }
 
+        // Quiz (assignment) status for this lesson
+        const assignment = assignmentByLesson.get(lesson.id);
+        let quizCompleted = false;
+        if (assignment) {
+          const quizCorrect = assignment.problemIds.filter((pid) => problemStats.get(pid)?.correct).length;
+          quizCompleted = quizCorrect >= assignment.problemIds.length;
+        }
+
+        // Coins
+        const earnedPracticeCoins = Math.min(practiceCoins.get(lesson.id) ?? 0, MAX_PRACTICE_COINS);
+        const earnedQuizBonus = assignment && assignmentBonusEarned.has(assignment.id) ? QUIZ_BONUS : 0;
+        const totalPossibleCoins = MAX_PRACTICE_COINS + (assignment ? QUIZ_BONUS : 0);
+        const earnedCoins = earnedPracticeCoins + earnedQuizBonus;
+
         return {
           id: lesson.id,
           title: lesson.title,
@@ -113,6 +159,9 @@ export async function GET() {
           status,
           problemCount: problemIds.length,
           completedProblems: correct,
+          hasQuiz: !!assignment,
+          quizCompleted,
+          coins: { earned: earnedCoins, total: totalPossibleCoins },
         };
       });
 
@@ -128,12 +177,16 @@ export async function GET() {
         topicStatus = "available";
       }
 
+      const topicCoinsEarned = lessons.reduce((s, l) => s + l.coins.earned, 0);
+      const topicCoinsTotal = lessons.reduce((s, l) => s + l.coins.total, 0);
+
       return {
         id: topic.id,
         name: topic.name,
         order: topic.order,
         status: topicStatus,
         lessons,
+        coins: { earned: topicCoinsEarned, total: topicCoinsTotal },
       };
     });
 
@@ -149,15 +202,22 @@ export async function GET() {
       phaseStatus = "available";
     }
 
+    const phaseCoinsEarned = questTopics.reduce((s, t) => s + t.coins.earned, 0);
+    const phaseCoinsTotal = questTopics.reduce((s, t) => s + t.coins.total, 0);
+
     return {
       phase,
       status: phaseStatus,
       topics: questTopics,
+      coins: { earned: phaseCoinsEarned, total: phaseCoinsTotal },
     };
   });
 
   // Apply sequential locking: lock phases/topics/lessons that aren't reachable yet
-  const mutablePhases = phases as { phase: string; status: NodeStatus; topics: { id: string; name: string; order: number; status: NodeStatus; lessons: { id: string; title: string; order: number; status: NodeStatus; problemCount: number; completedProblems: number }[] }[] }[];
+  type LessonNode = { id: string; title: string; order: number; status: NodeStatus; problemCount: number; completedProblems: number; hasQuiz: boolean; quizCompleted: boolean; coins: { earned: number; total: number } };
+  type TopicNode = { id: string; name: string; order: number; status: NodeStatus; lessons: LessonNode[]; coins: { earned: number; total: number } };
+  type PhaseNode = { phase: string; status: NodeStatus; topics: TopicNode[]; coins: { earned: number; total: number } };
+  const mutablePhases = phases as PhaseNode[];
 
   for (let pi = 0; pi < mutablePhases.length; pi++) {
     const p = mutablePhases[pi];
@@ -189,6 +249,15 @@ export async function GET() {
     }
   }
 
+  // Overall coins
+  const totalCoinsEarned = mutablePhases.reduce((s, p) => s + p.coins.earned, 0);
+  const totalCoinsPossible = mutablePhases.reduce((s, p) => s + p.coins.total, 0);
+
+  // Final test: all phases completed
+  const FINAL_TEST_BONUS = 50;
+  const allPhasesCompleted = mutablePhases.every((p) => p.status === "completed");
+  const finalTestEarned = assignmentBonusEarned.has("FINAL_TEST") ? FINAL_TEST_BONUS : 0;
+
   return Response.json({
     hasClass: true,
     className: membership.class.name,
@@ -200,5 +269,11 @@ export async function GET() {
       streak: profile?.streak ?? 0,
     },
     phases,
+    totalCoins: { earned: totalCoinsEarned + finalTestEarned, total: totalCoinsPossible + FINAL_TEST_BONUS },
+    finalTest: {
+      unlocked: allPhasesCompleted,
+      completed: finalTestEarned > 0,
+      coins: FINAL_TEST_BONUS,
+    },
   });
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, use, useCallback } from "react";
-import { ArrowLeft, Copy, Check, UserMinus, Plus, Trash2, Sparkles, Loader2, BookOpen, ExternalLink } from "lucide-react";
+import { ArrowLeft, Copy, Check, UserMinus, Plus, Trash2, Sparkles, Loader2, BookOpen, ExternalLink, Map } from "lucide-react";
+import { TeacherQuestRoad } from "./TeacherQuestRoad";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -548,6 +549,15 @@ export default function ClassDetailPage({ params }: { params: Promise<{ classId:
             Click &quot;Generate Summary&quot; to get AI-powered insights about each student&apos;s performance, strengths, and areas for improvement.
           </p>
         )}
+      </div>
+
+      {/* Quest Road */}
+      <div className="mb-6">
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
+          <Map size={18} />
+          Quest Road
+        </h2>
+        <TeacherQuestRoad classId={classId} onQuizGenerated={fetchAssignments} />
       </div>
 
       {/* Student list */}
