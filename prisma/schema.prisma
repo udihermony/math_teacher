@@ -245,6 +245,8 @@ model ClassAssignment {
   lesson     Lesson    @relation(fields: [lessonId], references: [id])
   problemIds    Json?     // Array of selected problem IDs; null = all problems
   questionCount Int?      // How many questions teacher requested
+  passingGrade  Int?      // Minimum correct answers to pass; null = all questions
+  studentIds    Json?     // Array of student user IDs; null = all students in class
   dueDate       DateTime?
   note       String?
   createdAt  DateTime  @default(now())

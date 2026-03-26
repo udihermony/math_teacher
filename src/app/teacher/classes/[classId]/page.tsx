@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, use, useCallback } from "react";
-import { ArrowLeft, Copy, Check, UserMinus, Plus, Trash2, Sparkles, Loader2, BookOpen, ExternalLink, Map } from "lucide-react";
+import { ArrowLeft, Copy, Check, UserMinus, Plus, Trash2, Sparkles, Loader2, BookOpen, ExternalLink, Map, Eye } from "lucide-react";
 import { TeacherQuestRoad } from "./TeacherQuestRoad";
+import { StudentProgressView } from "./StudentProgressView";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -98,6 +99,9 @@ export default function ClassDetailPage({ params }: { params: Promise<{ classId:
   // AI Summary
   const [aiSummary, setAiSummary] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+
+  // Student progress view
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
 
   const fetchClassData = useCallback(async () => {
     const res = await fetch(`/api/classes/${classId}`);
@@ -557,12 +561,23 @@ export default function ClassDetailPage({ params }: { params: Promise<{ classId:
           <Map size={18} />
           Quest Road
         </h2>
-        <TeacherQuestRoad classId={classId} onQuizGenerated={fetchAssignments} />
+        <TeacherQuestRoad
+          classId={classId}
+          students={students.map((m) => ({ id: m.user.id, name: m.user.name }))}
+          onQuizGenerated={fetchAssignments}
+        />
       </div>
 
-      {/* Student list */}
+      {/* Student list / Student progress view */}
       <h2 className="mb-3 text-lg font-semibold">Students ({students.length})</h2>
-      {students.length === 0 ? (
+
+      {selectedStudentId ? (
+        <StudentProgressView
+          classId={classId}
+          studentId={selectedStudentId}
+          onBack={() => setSelectedStudentId(null)}
+        />
+      ) : students.length === 0 ? (
         <p className="text-muted-foreground">
           No students yet. Share the join code with your class!
         </p>
@@ -581,7 +596,11 @@ export default function ClassDetailPage({ params }: { params: Promise<{ classId:
             </thead>
             <tbody>
               {students.map((m) => (
-                <tr key={m.user.id} className="border-t border-border">
+                <tr
+                  key={m.user.id}
+                  className="border-t border-border cursor-pointer hover:bg-secondary/30"
+                  onClick={() => setSelectedStudentId(m.user.id)}
+                >
                   <td className="px-4 py-2">
                     <div>
                       <p className="font-medium">{m.user.name}</p>
@@ -603,14 +622,24 @@ export default function ClassDetailPage({ params }: { params: Promise<{ classId:
                     {m.user.studentProfile?.streak || 0}
                   </td>
                   <td className="px-4 py-2 text-right">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => removeStudent(m.user.id)}
-                      title="Remove student"
-                    >
-                      <UserMinus size={14} />
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => { e.stopPropagation(); setSelectedStudentId(m.user.id); }}
+                        title="View progress"
+                      >
+                        <Eye size={14} />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => { e.stopPropagation(); removeStudent(m.user.id); }}
+                        title="Remove student"
+                      >
+                        <UserMinus size={14} />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}

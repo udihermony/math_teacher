@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import type { Phase } from "@/generated/prisma/client";
+import { maxPracticeCoins, quizBonus } from "@/modules/gamification/coin-calculator";
 
 type NodeStatus = "locked" | "available" | "in_progress" | "completed";
 
@@ -81,11 +82,18 @@ export async function GET() {
     }),
   ]);
 
-  // Build assignment map: lessonId -> { assignmentId, problemIds }
-  const assignmentByLesson = new Map<string, { id: string; problemIds: string[] }>();
+  // Build assignment map: lessonId -> { assignmentId, problemIds, passingGrade }
+  // Filter by studentIds: null = all students, array = only those students
+  const assignmentByLesson = new Map<string, { id: string; problemIds: string[]; passingGrade: number }>();
   for (const a of classAssignments) {
+    const targets = a.studentIds as string[] | null;
+    if (targets && !targets.includes(userId)) continue; // not assigned to this student
     const ids = (a.problemIds as string[] | null) ?? a.lesson.problems.map((p) => p.id);
-    assignmentByLesson.set(a.lessonId, { id: a.id, problemIds: ids });
+    assignmentByLesson.set(a.lessonId, {
+      id: a.id,
+      problemIds: ids,
+      passingGrade: a.passingGrade ?? ids.length, // default: all questions
+    });
   }
 
   // Build coin maps: lessonId -> practice coins earned, assignmentId -> bonus earned
@@ -99,9 +107,6 @@ export async function GET() {
       assignmentBonusEarned.add(tx.sourceId);
     }
   }
-
-  const MAX_PRACTICE_COINS = 10;
-  const QUIZ_BONUS = 5;
 
   // Build hierarchical structure
   const byPhase = new Map<string, typeof topics>();
@@ -127,29 +132,34 @@ export async function GET() {
           }
         }
 
+        // Quiz (assignment) status for this lesson
+        const assignment = assignmentByLesson.get(lesson.id);
+        let quizCompleted = false;
+        let quizCorrectCount = 0;
+        if (assignment) {
+          quizCorrectCount = assignment.problemIds.filter((pid) => problemStats.get(pid)?.correct).length;
+          quizCompleted = quizCorrectCount >= assignment.passingGrade;
+        }
+
+        // Lesson is "completed" (passed) when quiz is passed
+        // Practice progress is tracked separately
         let status: NodeStatus;
-        if (problemIds.length === 0) {
-          status = "available";
-        } else if (correct >= problemIds.length) {
+        if (quizCompleted) {
           status = "completed";
-        } else if (attempted > 0) {
+        } else if (attempted > 0 || (assignment && assignment.problemIds.some((pid) => problemStats.has(pid)))) {
           status = "in_progress";
+        } else if (problemIds.length === 0 && !assignment) {
+          status = "available";
         } else {
           status = "available";
         }
 
-        // Quiz (assignment) status for this lesson
-        const assignment = assignmentByLesson.get(lesson.id);
-        let quizCompleted = false;
-        if (assignment) {
-          const quizCorrect = assignment.problemIds.filter((pid) => problemStats.get(pid)?.correct).length;
-          quizCompleted = quizCorrect >= assignment.problemIds.length;
-        }
-
-        // Coins
-        const earnedPracticeCoins = Math.min(practiceCoins.get(lesson.id) ?? 0, MAX_PRACTICE_COINS);
-        const earnedQuizBonus = assignment && assignmentBonusEarned.has(assignment.id) ? QUIZ_BONUS : 0;
-        const totalPossibleCoins = MAX_PRACTICE_COINS + (assignment ? QUIZ_BONUS : 0);
+        // Coins (scaled by phase)
+        const phaseMaxPractice = maxPracticeCoins(phase);
+        const phaseQuizBonus = quizBonus(phase);
+        const earnedPracticeCoins = Math.min(practiceCoins.get(lesson.id) ?? 0, phaseMaxPractice);
+        const earnedQuizBonus = assignment && assignmentBonusEarned.has(assignment.id) ? phaseQuizBonus : 0;
+        const totalPossibleCoins = phaseMaxPractice + (assignment ? phaseQuizBonus : 0);
         const earnedCoins = earnedPracticeCoins + earnedQuizBonus;
 
         return {
@@ -161,15 +171,19 @@ export async function GET() {
           completedProblems: correct,
           hasQuiz: !!assignment,
           quizCompleted,
+          quizCorrect: quizCorrectCount,
+          quizTotal: assignment?.problemIds.length ?? 0,
+          passingGrade: assignment?.passingGrade ?? 0,
+          quizProblemIds: assignment?.problemIds ?? [],
           coins: { earned: earnedCoins, total: totalPossibleCoins },
         };
       });
 
-      const completedLessons = lessons.filter((l) => l.status === "completed").length;
+      const passedLessons = lessons.filter((l) => l.status === "completed").length;
       const hasProgress = lessons.some((l) => l.status === "in_progress" || l.status === "completed");
 
       let topicStatus: NodeStatus;
-      if (lessons.length > 0 && completedLessons === lessons.length) {
+      if (lessons.length > 0 && passedLessons === lessons.length) {
         topicStatus = "completed";
       } else if (hasProgress) {
         topicStatus = "in_progress";
@@ -214,7 +228,7 @@ export async function GET() {
   });
 
   // Apply sequential locking: lock phases/topics/lessons that aren't reachable yet
-  type LessonNode = { id: string; title: string; order: number; status: NodeStatus; problemCount: number; completedProblems: number; hasQuiz: boolean; quizCompleted: boolean; coins: { earned: number; total: number } };
+  type LessonNode = { id: string; title: string; order: number; status: NodeStatus; problemCount: number; completedProblems: number; hasQuiz: boolean; quizCompleted: boolean; quizCorrect: number; quizTotal: number; passingGrade: number; quizProblemIds: string[]; coins: { earned: number; total: number } };
   type TopicNode = { id: string; name: string; order: number; status: NodeStatus; lessons: LessonNode[]; coins: { earned: number; total: number } };
   type PhaseNode = { phase: string; status: NodeStatus; topics: TopicNode[]; coins: { earned: number; total: number } };
   const mutablePhases = phases as PhaseNode[];

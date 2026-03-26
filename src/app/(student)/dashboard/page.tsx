@@ -90,6 +90,10 @@ export default async function StudentDashboard() {
 
       // Count lessons and build pending assignments
       for (const a of membership.class.assignments) {
+        // Filter by studentIds: null = all, array = only listed students
+        const targets = (a as { studentIds?: string[] | null }).studentIds;
+        if (targets && !targets.includes(userId)) continue;
+
         const assignedIds = (a.problemIds as string[] | null) ?? a.lesson.problems.map((p) => p.id);
 
         let attempted = 0;

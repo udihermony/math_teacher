@@ -15,6 +15,8 @@ import {
   Flame,
   Zap,
   Trophy,
+  Dumbbell,
+  Play,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -29,6 +31,10 @@ interface QuestLesson {
   completedProblems: number;
   hasQuiz: boolean;
   quizCompleted: boolean;
+  quizCorrect: number;
+  quizTotal: number;
+  passingGrade: number;
+  quizProblemIds: string[];
   coins: { earned: number; total: number };
 }
 
@@ -272,9 +278,9 @@ function PhaseSection({
             {PHASE_LABELS[phase.phase]}
           </p>
           <p className="text-xs text-muted-foreground">
-            {completedTopics}/{phase.topics.length} topics
+            {completedTopics}/{phase.topics.length} topics passed
             {phase.status !== "locked" && ` · ${progressPct}%`}
-            {phase.status === "completed" && " · Completed"}
+            {phase.status === "completed" && " · Level Passed!"}
           </p>
         </div>
 
@@ -291,6 +297,11 @@ function PhaseSection({
           className={`text-muted-foreground transition-transform ${expanded ? "" : "-rotate-90"}`}
         />
       </button>
+
+      {/* Phase action buttons */}
+      {phase.status !== "locked" && (
+        <PhaseActions phase={phase} />
+      )}
       </div>
 
       {/* Topics within this phase */}
@@ -306,6 +317,41 @@ function PhaseSection({
             />
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+function PhaseActions({ phase }: { phase: QuestPhase }) {
+  const hasPractice = phase.topics.some((t) =>
+    t.lessons.some((l) => l.problemCount > 0 && l.status !== "locked")
+  );
+  const allQuizIds = phase.topics
+    .flatMap((t) => t.lessons)
+    .filter((l) => l.hasQuiz && l.status !== "locked")
+    .flatMap((l) => l.quizProblemIds);
+
+  if (!hasPractice && allQuizIds.length === 0) return null;
+
+  return (
+    <div className="ml-[72px] -mt-2 mb-3 flex items-center gap-2">
+      {hasPractice && (
+        <Link
+          href={`/practice?phase=${phase.phase}`}
+          className="flex items-center gap-1 rounded-md border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-foreground hover:bg-secondary/80"
+        >
+          <Dumbbell size={12} />
+          Practice Level
+        </Link>
+      )}
+      {allQuizIds.length > 0 && (
+        <Link
+          href={`/practice?ids=${allQuizIds.join(",")}`}
+          className="flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:opacity-90"
+        >
+          <ClipboardList size={12} />
+          Level Test
+        </Link>
       )}
     </div>
   );
@@ -362,11 +408,19 @@ function TopicSection({
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-semibold truncate ${topic.status === "locked" ? "text-muted-foreground" : ""}`}>
-            {topic.name}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className={`text-sm font-semibold truncate ${topic.status === "locked" ? "text-muted-foreground" : ""}`}>
+              {topic.name}
+            </p>
+            {topic.status === "completed" && (
+              <span className="flex items-center gap-0.5 rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-green-700 dark:bg-green-950/30 dark:text-green-400">
+                <Check size={9} strokeWidth={3} />
+                Passed
+              </span>
+            )}
+          </div>
           <span className="text-xs text-muted-foreground">
-            {completedLessons}/{topic.lessons.length} lessons &middot; {progressPct}%
+            {completedLessons}/{topic.lessons.length} passed &middot; {progressPct}%
           </span>
           {topic.status !== "locked" && (
             <span className={`ml-1 inline-flex items-center gap-0.5 text-xs ${topic.coins.earned > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
@@ -387,6 +441,11 @@ function TopicSection({
           </div>
         )}
       </button>
+
+      {/* Topic action buttons */}
+      {topic.status !== "locked" && (
+        <TopicActions topic={topic} />
+      )}
       </div>
 
       {/* Lessons */}
@@ -401,6 +460,38 @@ function TopicSection({
             />
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+function TopicActions({ topic }: { topic: QuestTopic }) {
+  const hasPractice = topic.lessons.some((l) => l.problemCount > 0 && l.status !== "locked");
+  const allQuizIds = topic.lessons
+    .filter((l) => l.hasQuiz && l.status !== "locked")
+    .flatMap((l) => l.quizProblemIds);
+
+  if (!hasPractice && allQuizIds.length === 0) return null;
+
+  return (
+    <div className="ml-14 mt-1 flex items-center gap-2">
+      {hasPractice && (
+        <Link
+          href={`/practice?topicId=${topic.id}`}
+          className="flex items-center gap-1 rounded-md border border-border bg-secondary px-2 py-1 text-[11px] font-medium text-foreground hover:bg-secondary/80"
+        >
+          <Dumbbell size={11} />
+          Practice All
+        </Link>
+      )}
+      {allQuizIds.length > 0 && (
+        <Link
+          href={`/practice?ids=${allQuizIds.join(",")}`}
+          className="flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground hover:opacity-90"
+        >
+          <ClipboardList size={11} />
+          Topic Test
+        </Link>
       )}
     </div>
   );
@@ -457,7 +548,15 @@ function LessonNode({
           </p>
         </div>
 
-        {/* Lesson progress % */}
+        {/* Passed badge */}
+        {lesson.status === "completed" && (
+          <span className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold uppercase text-green-700 dark:bg-green-950/30 dark:text-green-400">
+            <Check size={10} strokeWidth={3} />
+            Passed
+          </span>
+        )}
+
+        {/* Practice progress % */}
         {lesson.status !== "locked" && lesson.problemCount > 0 && (
           <span className={`text-xs font-medium ${lesson.status === "completed" ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}>
             {progressPct}%
@@ -479,7 +578,8 @@ function LessonNode({
         {lesson.hasQuiz && (
           <span className={`flex items-center gap-1 ${lesson.quizCompleted ? "text-green-500" : ""}`}>
             {lesson.quizCompleted ? <Check size={11} strokeWidth={3} /> : <ClipboardList size={11} />}
-            Quiz {lesson.quizCompleted ? "passed" : "0/1"}
+            Quiz {lesson.quizCorrect}/{lesson.passingGrade}
+            {lesson.quizCompleted ? " passed" : ""}
           </span>
         )}
 
@@ -489,18 +589,34 @@ function LessonNode({
           {lesson.coins.earned}/{lesson.coins.total}
         </span>
       </div>
+
+      {/* Action buttons */}
+      {lesson.status !== "locked" && (
+        <div className="ml-10 mt-1.5 flex items-center gap-2">
+          {lesson.problemCount > 0 && (
+            <Link
+              href={`/practice?lessonId=${lesson.id}`}
+              className="flex items-center gap-1 rounded-md border border-border bg-secondary px-2 py-1 text-[11px] font-medium text-foreground hover:bg-secondary/80"
+            >
+              <Dumbbell size={11} />
+              Practice
+            </Link>
+          )}
+          {lesson.hasQuiz && (
+            <Link
+              href={`/practice?ids=${lesson.quizProblemIds.join(",")}`}
+              className="flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground hover:opacity-90"
+            >
+              <ClipboardList size={11} />
+              {lesson.quizCompleted ? "Retake Quiz" : "Take Quiz"}
+            </Link>
+          )}
+        </div>
+      )}
     </div>
   );
 
-  if (lesson.status === "locked") {
-    return content;
-  }
-
-  return (
-    <Link href={`/practice?lessonId=${lesson.id}`}>
-      {content}
-    </Link>
-  );
+  return content;
 }
 
 // ── Join Class Prompt ────────────────────────────────

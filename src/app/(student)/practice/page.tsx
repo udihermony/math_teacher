@@ -3,7 +3,17 @@
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Trophy, Zap, Coins, ArrowLeft } from "lucide-react";
+import {
+  ArrowRight,
+  Trophy,
+  Zap,
+  Coins,
+  ArrowLeft,
+  Check,
+  ClipboardList,
+  RotateCcw,
+  Loader2,
+} from "lucide-react";
 import { ProblemRenderer } from "@/modules/problems";
 import { useProblem } from "@/modules/problems/hooks/useProblem";
 import { useCompanion } from "@/modules/companion";
@@ -23,6 +33,7 @@ interface ProblemData {
   solution?: { steps: string[] } | null;
   lesson?: { title: string } | null;
   skills?: { skill: { name: string } }[];
+  solvedByUser?: boolean;
 }
 
 export default function PracticePage() {
@@ -38,10 +49,11 @@ function PracticeInner() {
   const router = useRouter();
   const lessonId = searchParams.get("lessonId");
   const topicId = searchParams.get("topicId");
+  const phase = searchParams.get("phase");
   const assignmentIds = searchParams.get("ids");
 
-  // If no params, show the topic browser
-  const hasPracticeParams = !!(lessonId || topicId || assignmentIds);
+  const hasPracticeParams = !!(lessonId || topicId || phase || assignmentIds);
+  const isQuizMode = !!assignmentIds;
 
   const {
     problem,
@@ -58,6 +70,8 @@ function PracticeInner() {
   const [problemQueue, setProblemQueue] = useState<ProblemData[]>([]);
   const [queueIndex, setQueueIndex] = useState(0);
   const [score, setScore] = useState({ correct: 0, total: 0 });
+  const [solvedIds, setSolvedIds] = useState<Set<string>>(new Set());
+  const [retaking, setRetaking] = useState(false);
   const { setProblemContext, showHint } = useCompanion();
 
   // Gamification state
@@ -71,25 +85,25 @@ function PracticeInner() {
   const [coinBalance, setCoinBalance] = useState(0);
   const [lastCoinsEarned, setLastCoinsEarned] = useState(0);
 
-  // Load problems on mount, passing lessonId/topicId from URL if present
-  // If assignmentIds is present, load those specific problems (for assignments)
+  // Load problems
   useEffect(() => {
     if (!hasPracticeParams) return;
     const params: Record<string, string> = {};
 
     if (assignmentIds) {
-      // Assignment mode: fetch specific problems by ID
       params.ids = assignmentIds;
     } else {
-      // Practice mode: only PRACTICE problems
       if (lessonId) params.lessonId = lessonId;
-      if (topicId) params.topicId = topicId;
+      if (topicId) { params.topicId = topicId; params.limit = "100"; }
+      if (phase) { params.phase = phase; params.limit = "200"; }
     }
 
     fetchProblems(params).then((problems) => {
-      setProblemQueue(problems as ProblemData[]);
-      if (problems.length > 0) {
-        fetchProblem(problems[0].id);
+      const typed = problems as ProblemData[];
+      setProblemQueue(typed);
+      setSolvedIds(new Set(typed.filter((p) => p.solvedByUser).map((p) => p.id)));
+      if (typed.length > 0) {
+        fetchProblem(typed[0].id);
       }
     });
   }, [fetchProblems, fetchProblem, searchParams]);
@@ -101,7 +115,7 @@ function PracticeInner() {
     [submitAnswer]
   );
 
-  // Track score, gamification updates, and trigger Pi hint on wrong answers
+  // Track score and gamification
   useEffect(() => {
     if (result) {
       setScore((prev) => ({
@@ -109,7 +123,10 @@ function PracticeInner() {
         total: prev.total + 1,
       }));
 
-      // Update gamification state
+      if (result.isCorrect && problem) {
+        setSolvedIds((prev) => new Set(prev).add(problem.id));
+      }
+
       if (result.xp) {
         setCurrentXP({
           level: result.xp.level,
@@ -157,10 +174,45 @@ function PracticeInner() {
     }
   }
 
+  function goToProblem(index: number) {
+    if (index !== queueIndex) {
+      setQueueIndex(index);
+      nextProblem();
+      fetchProblem(problemQueue[index].id);
+    }
+  }
+
+  async function handleRetakeQuiz() {
+    if (!assignmentIds) return;
+    setRetaking(true);
+    try {
+      // Ask the server to regenerate quiz questions
+      const res = await fetch("/api/student/retake-quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ problemIds: assignmentIds.split(",") }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.newIds?.length) {
+          // Navigate to the new quiz
+          router.push(`/practice?ids=${data.newIds.join(",")}`);
+          return;
+        }
+      }
+      // Fallback: just reload the same quiz
+      window.location.reload();
+    } catch {
+      window.location.reload();
+    } finally {
+      setRetaking(false);
+    }
+  }
+
   const currentProblemData = problemQueue[queueIndex] as ProblemData | undefined;
   const isLastProblem = queueIndex >= problemQueue.length - 1;
 
-  // Show topic browser when no practice params
+  // No params → topic browser
   if (!hasPracticeParams) {
     return <TopicBrowser />;
   }
@@ -184,7 +236,7 @@ function PracticeInner() {
   if (problemQueue.length === 0 && !loading) {
     return (
       <div className="text-center">
-        <h1 className="text-2xl font-bold">Practice</h1>
+        <h1 className="text-2xl font-bold">{isQuizMode ? "Quiz" : "Practice"}</h1>
         <p className="mt-2 text-muted-foreground">
           No problems available yet. Check back soon!
         </p>
@@ -194,7 +246,6 @@ function PracticeInner() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      {/* Level up modal */}
       <LevelUpModal
         show={showLevelUp}
         level={levelUpData.level}
@@ -206,19 +257,29 @@ function PracticeInner() {
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => router.push("/practice")}
+            onClick={() => router.push(isQuizMode ? "/dashboard" : "/practice")}
             className="flex items-center gap-1 rounded-md px-2 py-1 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            title="Back to topics"
+            title={isQuizMode ? "Back to dashboard" : "Back to topics"}
           >
             <ArrowLeft size={16} />
           </button>
           <div>
-          <h1 className="text-2xl font-bold">Practice</h1>
-          {currentProblemData?.lesson && (
-            <p className="text-sm text-muted-foreground">
-              {currentProblemData.lesson.title}
-            </p>
-          )}
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold">
+                {isQuizMode ? "Quiz" : "Practice"}
+              </h1>
+              {isQuizMode && (
+                <span className="rounded bg-amber-200 px-2 py-0.5 text-xs font-semibold uppercase text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+                  <ClipboardList size={12} className="mr-1 inline" />
+                  {problemQueue.length} Questions
+                </span>
+              )}
+            </div>
+            {currentProblemData?.lesson && (
+              <p className="text-sm text-muted-foreground">
+                {currentProblemData.lesson.title}
+              </p>
+            )}
           </div>
         </div>
 
@@ -246,17 +307,70 @@ function PracticeInner() {
         <XPBar level={currentXP.level} xp={currentXP.xp} progress={currentXP.progress} xpToNext={currentXP.xpToNext} compact />
       </div>
 
-      {/* Progress bar */}
-      <div className="mb-6 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-        <motion.div
-          className="h-full rounded-full bg-primary"
-          initial={{ width: 0 }}
-          animate={{
-            width: `${((queueIndex + (result ? 1 : 0)) / problemQueue.length) * 100}%`,
-          }}
-          transition={{ duration: 0.3 }}
-        />
-      </div>
+      {/* Practice mode: clickable dots with solved indicators */}
+      {!isQuizMode && (
+        <div className="mb-6 flex items-center gap-1 overflow-x-auto py-1">
+          {problemQueue.map((p, i) => {
+            const isSolved = solvedIds.has(p.id);
+            const isCurrent = i === queueIndex;
+            return (
+              <button
+                key={p.id}
+                onClick={() => goToProblem(i)}
+                className={`relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold transition-all ${
+                  isCurrent
+                    ? "ring-2 ring-primary ring-offset-1 bg-primary text-primary-foreground"
+                    : isSolved
+                    ? "bg-green-500 text-white"
+                    : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                }`}
+                title={isSolved ? `Q${i + 1} — Solved` : `Q${i + 1}`}
+              >
+                {isSolved && !isCurrent ? (
+                  <Check size={12} strokeWidth={3} />
+                ) : (
+                  i + 1
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Quiz mode: clickable question indicators */}
+      {isQuizMode && (
+        <div className="mb-6">
+          <div className="flex items-center gap-1 overflow-x-auto py-1">
+            {problemQueue.map((p, i) => {
+              const isSolved = solvedIds.has(p.id);
+              const isCurrent = i === queueIndex;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => goToProblem(i)}
+                  className={`relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold transition-all ${
+                    isCurrent
+                      ? "ring-2 ring-amber-500 ring-offset-1 bg-amber-500 text-white"
+                      : isSolved
+                      ? "bg-green-500 text-white"
+                      : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                  }`}
+                  title={isSolved ? `Q${i + 1} — Solved` : `Q${i + 1}`}
+                >
+                  {isSolved && !isCurrent ? (
+                    <Check size={12} strokeWidth={3} />
+                  ) : (
+                    i + 1
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground text-center mt-1">
+            Question {queueIndex + 1} of {problemQueue.length}
+          </p>
+        </div>
+      )}
 
       {/* Problem card */}
       <AnimatePresence mode="wait">
@@ -319,7 +433,7 @@ function PracticeInner() {
               )}
             </AnimatePresence>
 
-            {/* Next button */}
+            {/* Next button (both modes) */}
             {result && !isLastProblem && (
               <motion.div
                 initial={{ opacity: 0 }}
@@ -336,8 +450,8 @@ function PracticeInner() {
               </motion.div>
             )}
 
-            {/* Session complete */}
-            {result && isLastProblem && (
+            {/* Session complete — Practice */}
+            {result && isLastProblem && !isQuizMode && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -348,12 +462,57 @@ function PracticeInner() {
                 <p className="mt-1 text-sm text-muted-foreground">
                   You got {score.correct} out of {score.total} correct.
                 </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {solvedIds.size}/{problemQueue.length} questions solved overall
+                </p>
                 <button
                   onClick={() => window.location.reload()}
                   className="mt-4 rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
                 >
                   Practice Again
                 </button>
+              </motion.div>
+            )}
+
+            {/* Session complete — Quiz */}
+            {result && isLastProblem && isQuizMode && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-6 text-center dark:border-amber-900/50 dark:bg-amber-950/20"
+              >
+                <ClipboardList size={32} className="mx-auto mb-2 text-amber-600" />
+                <h2 className="text-lg font-bold">Quiz Complete!</h2>
+                <p className="mt-1 text-2xl font-bold text-amber-700 dark:text-amber-400">
+                  {score.correct} / {score.total}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {score.correct === score.total
+                    ? "Perfect score! Amazing work!"
+                    : score.correct >= score.total * 0.7
+                    ? "Good job! You passed the quiz."
+                    : "Keep practicing and try again!"}
+                </p>
+                <div className="mt-4 flex justify-center gap-3">
+                  <button
+                    onClick={() => router.push("/dashboard")}
+                    className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+                  >
+                    Back to Dashboard
+                  </button>
+                  <button
+                    onClick={handleRetakeQuiz}
+                    disabled={retaking}
+                    className="flex items-center gap-1.5 rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+                  >
+                    {retaking ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <RotateCcw size={14} />
+                    )}
+                    {retaking ? "Generating..." : "Retake Quiz"}
+                  </button>
+                </div>
               </motion.div>
             )}
           </motion.div>

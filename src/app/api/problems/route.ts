@@ -38,6 +38,12 @@ export async function GET(request: NextRequest) {
     where.lesson = { topicId };
   }
 
+  // Filter by phase via lesson→topic relation
+  const phaseParam = searchParams.get("phase");
+  if (phaseParam) {
+    where.lesson = { ...(where.lesson as Record<string, unknown> || {}), topic: { phase: phaseParam } };
+  }
+
   // Adaptive mode: use spaced repetition and difficulty adjustment
   let difficultyInfo = null;
   let reviewSkills: Awaited<ReturnType<typeof getSkillsDueForReview>> = [];
@@ -69,6 +75,13 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Get current user for solved status
+  let userId: string | null = null;
+  if (!adaptive) {
+    const session = await auth();
+    userId = session?.user?.id ?? null;
+  }
+
   const [problems, total] = await Promise.all([
     prisma.problem.findMany({
       where,
@@ -82,6 +95,27 @@ export async function GET(request: NextRequest) {
     }),
     prisma.problem.count({ where }),
   ]);
+
+  // If we have a user (from adaptive or explicit auth), check which problems are solved
+  const resolvedUserId = userId ?? (adaptive ? (await auth())?.user?.id : null);
+  let solvedSet = new Set<string>();
+  if (resolvedUserId && problems.length > 0) {
+    const correctSubs = await prisma.submission.findMany({
+      where: {
+        userId: resolvedUserId,
+        problemId: { in: problems.map((p) => p.id) },
+        isCorrect: true,
+      },
+      select: { problemId: true },
+      distinct: ["problemId"],
+    });
+    solvedSet = new Set(correctSubs.map((s) => s.problemId));
+  }
+
+  const problemsWithSolved = problems.map((p) => ({
+    ...p,
+    solvedByUser: solvedSet.has(p.id),
+  }));
 
   // If adaptive mode found no review-specific problems, fall back to general
   if (adaptive && problems.length === 0 && reviewSkills.length > 0) {
@@ -98,8 +132,19 @@ export async function GET(request: NextRequest) {
     });
     const fallbackTotal = await prisma.problem.count({ where });
 
+    // Check solved status for fallback too
+    let fbSolvedSet = new Set<string>();
+    if (resolvedUserId && fallbackProblems.length > 0) {
+      const fbSubs = await prisma.submission.findMany({
+        where: { userId: resolvedUserId, problemId: { in: fallbackProblems.map((p) => p.id) }, isCorrect: true },
+        select: { problemId: true },
+        distinct: ["problemId"],
+      });
+      fbSolvedSet = new Set(fbSubs.map((s) => s.problemId));
+    }
+
     return Response.json({
-      problems: fallbackProblems,
+      problems: fallbackProblems.map((p) => ({ ...p, solvedByUser: fbSolvedSet.has(p.id) })),
       total: fallbackTotal,
       limit,
       offset,
@@ -109,7 +154,7 @@ export async function GET(request: NextRequest) {
   }
 
   return Response.json({
-    problems,
+    problems: problemsWithSolved,
     total,
     limit,
     offset,

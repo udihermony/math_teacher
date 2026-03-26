@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
   const problem = await prisma.problem.findUnique({
     where: { id: problemId },
     include: {
-      lesson: { select: { xpReward: true, id: true, topicId: true } },
+      lesson: { select: { xpReward: true, id: true, topicId: true, topic: { select: { phase: true } } } },
       skills: { select: { skillId: true } },
     },
   });
@@ -135,17 +135,27 @@ export async function POST(request: NextRequest) {
     // Check for new badges
     newBadges = await checkAndAwardBadges(session.user.id);
 
-    // Award coins
-    if (problem.lesson?.id) {
-      const answerCoin = await awardAnswerCoin(session.user.id, problem.lesson.id);
+    // Award coins — only if this is the first correct answer for this problem
+    const alreadySolvedThis = await prisma.submission.findFirst({
+      where: {
+        userId: session.user.id,
+        problemId,
+        isCorrect: true,
+        id: { not: submission.id }, // exclude the submission we just created
+      },
+    });
+
+    if (!alreadySolvedThis && problem.lesson?.id) {
+      const phase = problem.lesson.topic?.phase ?? "FOUNDATIONS";
+      const answerCoin = await awardAnswerCoin(session.user.id, problem.lesson.id, problem.difficulty, phase);
       coinsEarned += answerCoin;
 
-      const assignmentResult = await checkAssignmentCompletion(session.user.id, problemId);
+      const assignmentResult = await checkAssignmentCompletion(session.user.id, problemId, phase);
       coinsEarned += assignmentResult.coins;
 
       if (assignmentResult.coins > 0 && problem.lesson.topicId) {
-        const topicBonus = await checkTopicCompletion(session.user.id, problem.lesson.topicId);
-        coinsEarned += topicBonus;
+        const topicBonusCoins = await checkTopicCompletion(session.user.id, problem.lesson.topicId, phase);
+        coinsEarned += topicBonusCoins;
       }
     }
   } else {

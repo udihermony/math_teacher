@@ -1,12 +1,15 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import { requireTeacher } from "@/lib/teacher-auth";
 import { generateAssignmentProblems } from "@/modules/ai/generate-assignment-problems";
 
 const assignSchema = z.object({
   lessonId: z.string().min(1),
   questionCount: z.number().int().min(1).max(100),
+  passingGrade: z.number().int().min(1).optional(), // min correct answers to pass; null = all
+  studentIds: z.array(z.string()).optional(), // null/undefined = all students
   dueDate: z.string().datetime().optional(),
   note: z.string().max(500).optional(),
 });
@@ -97,6 +100,10 @@ export async function POST(
   // Trim to exact count requested
   problemIds = problemIds.slice(0, questionCount);
 
+  const studentIdsValue = parsed.data.studentIds?.length
+    ? (parsed.data.studentIds as unknown as Prisma.InputJsonValue)
+    : Prisma.JsonNull;
+
   const assignment = await prisma.classAssignment.upsert({
     where: { classId_lessonId: { classId, lessonId } },
     create: {
@@ -104,12 +111,16 @@ export async function POST(
       lessonId,
       problemIds: problemIds as never,
       questionCount,
+      passingGrade: parsed.data.passingGrade ?? null,
+      studentIds: studentIdsValue,
       dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
       note: parsed.data.note || null,
     },
     update: {
       problemIds: problemIds as never,
       questionCount,
+      passingGrade: parsed.data.passingGrade ?? null,
+      studentIds: studentIdsValue,
       dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
       note: parsed.data.note || null,
     },

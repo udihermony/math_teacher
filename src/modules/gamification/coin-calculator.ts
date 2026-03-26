@@ -1,36 +1,78 @@
 import { prisma } from "@/lib/db";
 
-const MAX_COINS_PER_LESSON = 10;
-const ASSIGNMENT_COMPLETE_BONUS = 5;
-const TOPIC_COMPLETE_BONUS = 15;
+/**
+ * Phase multiplier: harder phases pay more.
+ * FOUNDATIONS: 1x, EXPLORER: 1.5x, BUILDER: 2x, CHALLENGER: 3x, IB_READY: 4x
+ */
+const PHASE_MULTIPLIER: Record<string, number> = {
+  FOUNDATIONS: 1,
+  EXPLORER: 1.5,
+  BUILDER: 2,
+  CHALLENGER: 3,
+  IB_READY: 4,
+};
+
+/** Coins per correct answer based on difficulty (1-10). */
+export function coinsForDifficulty(difficulty: number): number {
+  if (difficulty <= 3) return 1;
+  if (difficulty <= 6) return 2;
+  return 3; // 7-10
+}
+
+/** Max practice coins earnable for a lesson, scaled by phase. */
+export function maxPracticeCoins(phase: string): number {
+  const mult = PHASE_MULTIPLIER[phase] ?? 1;
+  return Math.round(10 * mult);
+}
+
+/** Quiz completion bonus, scaled by phase. */
+export function quizBonus(phase: string): number {
+  const mult = PHASE_MULTIPLIER[phase] ?? 1;
+  return Math.round(5 * mult);
+}
+
+/** Topic completion bonus, scaled by phase. */
+export function topicBonus(phase: string): number {
+  const mult = PHASE_MULTIPLIER[phase] ?? 1;
+  return Math.round(15 * mult);
+}
 
 /**
- * Award 1 coin for a correct answer, up to MAX_COINS_PER_LESSON per lesson.
- * Returns the number of coins awarded (0 or 1).
+ * Award coins for a correct answer, scaled by difficulty.
+ * Capped at maxPracticeCoins(phase) per lesson.
+ * Returns the number of coins awarded.
  */
 export async function awardAnswerCoin(
   userId: string,
-  lessonId: string
+  lessonId: string,
+  difficulty: number,
+  phase: string
 ): Promise<number> {
-  // Count how many coins already earned for this lesson
-  const earned = await prisma.coinTransaction.count({
+  const cap = maxPracticeCoins(phase);
+
+  // Sum coins already earned for this lesson
+  const agg = await prisma.coinTransaction.aggregate({
     where: { userId, reason: "CORRECT_ANSWER", sourceId: lessonId },
+    _sum: { amount: true },
   });
+  const earned = agg._sum.amount ?? 0;
 
-  if (earned >= MAX_COINS_PER_LESSON) return 0;
+  if (earned >= cap) return 0;
 
-  // Award 1 coin
+  const reward = Math.min(coinsForDifficulty(difficulty), cap - earned);
+  if (reward <= 0) return 0;
+
   await prisma.$transaction([
     prisma.coinTransaction.create({
-      data: { userId, amount: 1, reason: "CORRECT_ANSWER", sourceId: lessonId },
+      data: { userId, amount: reward, reason: "CORRECT_ANSWER", sourceId: lessonId },
     }),
     prisma.studentProfile.update({
       where: { userId },
-      data: { coins: { increment: 1 } },
+      data: { coins: { increment: reward } },
     }),
   ]);
 
-  return 1;
+  return reward;
 }
 
 /**
@@ -40,8 +82,11 @@ export async function awardAnswerCoin(
  */
 export async function checkAssignmentCompletion(
   userId: string,
-  problemId: string
+  problemId: string,
+  phase: string
 ): Promise<{ coins: number; assignmentId?: string }> {
+  const bonus = quizBonus(phase);
+
   // Find assignments that include this problem
   const memberships = await prisma.classMembership.findMany({
     where: { userId, role: "STUDENT" },
@@ -75,14 +120,14 @@ export async function checkAssignmentCompletion(
     if (correctSubmissions.length >= assignedIds.length) {
       await prisma.$transaction([
         prisma.coinTransaction.create({
-          data: { userId, amount: ASSIGNMENT_COMPLETE_BONUS, reason: "ASSIGNMENT_COMPLETE", sourceId: a.id },
+          data: { userId, amount: bonus, reason: "ASSIGNMENT_COMPLETE", sourceId: a.id },
         }),
         prisma.studentProfile.update({
           where: { userId },
-          data: { coins: { increment: ASSIGNMENT_COMPLETE_BONUS } },
+          data: { coins: { increment: bonus } },
         }),
       ]);
-      return { coins: ASSIGNMENT_COMPLETE_BONUS, assignmentId: a.id };
+      return { coins: bonus, assignmentId: a.id };
     }
   }
 
@@ -96,8 +141,11 @@ export async function checkAssignmentCompletion(
  */
 export async function checkTopicCompletion(
   userId: string,
-  topicId: string
+  topicId: string,
+  phase: string
 ): Promise<number> {
+  const bonus = topicBonus(phase);
+
   // Check if already awarded
   const existing = await prisma.coinTransaction.findFirst({
     where: { userId, reason: "TOPIC_COMPLETE", sourceId: topicId },
@@ -144,15 +192,15 @@ export async function checkTopicCompletion(
   // Award topic completion bonus
   await prisma.$transaction([
     prisma.coinTransaction.create({
-      data: { userId, amount: TOPIC_COMPLETE_BONUS, reason: "TOPIC_COMPLETE", sourceId: topicId },
+      data: { userId, amount: bonus, reason: "TOPIC_COMPLETE", sourceId: topicId },
     }),
     prisma.studentProfile.update({
       where: { userId },
-      data: { coins: { increment: TOPIC_COMPLETE_BONUS } },
+      data: { coins: { increment: bonus } },
     }),
   ]);
 
-  return TOPIC_COMPLETE_BONUS;
+  return bonus;
 }
 
 /** Get the student's current coin balance */

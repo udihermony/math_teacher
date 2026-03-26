@@ -76,7 +76,8 @@ export async function GET(request: NextRequest) {
           order: lesson.order,
           practiceCount,
           assignmentCount,
-          hasQuiz: assignedLessonIds.has(lesson.id),
+          hasQuizProblems: assignmentCount > 0,
+          isAssigned: assignedLessonIds.has(lesson.id),
         };
       });
 
