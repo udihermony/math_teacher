@@ -33,11 +33,17 @@ interface LessonNode {
 }
 
 const PHASE_LABELS: Record<string, { label: string; color: string }> = {
-  FOUNDATIONS: { label: "Foundations (5-8)", color: "bg-purple-100 text-purple-800" },
-  EXPLORER: { label: "Explorer (8-11)", color: "bg-green-100 text-green-800" },
-  BUILDER: { label: "Builder (11-14)", color: "bg-blue-100 text-blue-800" },
-  CHALLENGER: { label: "Challenger (14-16)", color: "bg-violet-100 text-violet-800" },
-  IB_READY: { label: "IB Ready (16-18)", color: "bg-indigo-100 text-indigo-800" },
+  PHASE_0: { label: "Foundations", color: "bg-purple-100 text-purple-800" },
+  PHASE_1: { label: "Algebra", color: "bg-green-100 text-green-800" },
+  PHASE_2: { label: "Functions", color: "bg-blue-100 text-blue-800" },
+  PHASE_3: { label: "Sequences & Series", color: "bg-violet-100 text-violet-800" },
+  PHASE_4: { label: "Trigonometry", color: "bg-indigo-100 text-indigo-800" },
+  PHASE_5: { label: "Vectors & Geometry", color: "bg-teal-100 text-teal-800" },
+  PHASE_6: { label: "Statistics", color: "bg-amber-100 text-amber-800" },
+  PHASE_7: { label: "Differentiation", color: "bg-rose-100 text-rose-800" },
+  PHASE_8: { label: "Integration", color: "bg-cyan-100 text-cyan-800" },
+  PHASE_9: { label: "HL Topics", color: "bg-orange-100 text-orange-800" },
+  PHASE_10: { label: "Exam Prep", color: "bg-red-100 text-red-800" },
 };
 
 interface CurriculumTreeProps {
@@ -83,13 +89,13 @@ export function CurriculumTree({
     byPhase.set(topic.phase, list);
   }
 
-  const phases = ["FOUNDATIONS", "EXPLORER", "BUILDER", "CHALLENGER", "IB_READY"];
+  const phases = ["PHASE_0", "PHASE_1", "PHASE_2", "PHASE_3", "PHASE_4", "PHASE_5", "PHASE_6", "PHASE_7", "PHASE_8", "PHASE_9", "PHASE_10"];
 
   return (
     <div className="space-y-4">
       {phases.map((phase) => {
         const phaseTopics = byPhase.get(phase) || [];
-        const phaseInfo = PHASE_LABELS[phase];
+        const phaseInfo = PHASE_LABELS[phase] ?? { label: phase, color: "bg-gray-100 text-gray-800" };
         const phaseExpanded = expanded.has(phase);
 
         return (

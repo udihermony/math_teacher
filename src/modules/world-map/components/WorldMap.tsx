@@ -8,11 +8,17 @@ interface WorldMapProps {
 }
 
 const PHASE_COLORS: Record<string, { bg: string; border: string; glow: string }> = {
-  FOUNDATIONS: { bg: "#22c55e", border: "#16a34a", glow: "0 0 12px rgba(34,197,94,0.4)" },
-  EXPLORER: { bg: "#3b82f6", border: "#2563eb", glow: "0 0 12px rgba(59,130,246,0.4)" },
-  BUILDER: { bg: "#a855f7", border: "#9333ea", glow: "0 0 12px rgba(168,85,247,0.4)" },
-  CHALLENGER: { bg: "#f59e0b", border: "#d97706", glow: "0 0 12px rgba(245,158,11,0.4)" },
-  IB_READY: { bg: "#ef4444", border: "#dc2626", glow: "0 0 12px rgba(239,68,68,0.4)" },
+  PHASE_0: { bg: "#22c55e", border: "#16a34a", glow: "0 0 12px rgba(34,197,94,0.4)" },
+  PHASE_1: { bg: "#3b82f6", border: "#2563eb", glow: "0 0 12px rgba(59,130,246,0.4)" },
+  PHASE_2: { bg: "#6366f1", border: "#4f46e5", glow: "0 0 12px rgba(99,102,241,0.4)" },
+  PHASE_3: { bg: "#a855f7", border: "#9333ea", glow: "0 0 12px rgba(168,85,247,0.4)" },
+  PHASE_4: { bg: "#f59e0b", border: "#d97706", glow: "0 0 12px rgba(245,158,11,0.4)" },
+  PHASE_5: { bg: "#14b8a6", border: "#0d9488", glow: "0 0 12px rgba(20,184,166,0.4)" },
+  PHASE_6: { bg: "#f43f5e", border: "#e11d48", glow: "0 0 12px rgba(244,63,94,0.4)" },
+  PHASE_7: { bg: "#f97316", border: "#ea580c", glow: "0 0 12px rgba(249,115,22,0.4)" },
+  PHASE_8: { bg: "#ef4444", border: "#dc2626", glow: "0 0 12px rgba(239,68,68,0.4)" },
+  PHASE_9: { bg: "#8b5cf6", border: "#7c3aed", glow: "0 0 12px rgba(139,92,246,0.4)" },
+  PHASE_10: { bg: "#64748b", border: "#475569", glow: "0 0 12px rgba(100,116,139,0.4)" },
 };
 
 const STATUS_STYLES: Record<MapNode["status"], string> = {
@@ -103,7 +109,7 @@ function MapNodeComponent({
   node: MapNode;
   onClick: () => void;
 }) {
-  const colors = PHASE_COLORS[node.phase] || PHASE_COLORS.FOUNDATIONS;
+  const colors = PHASE_COLORS[node.phase] || PHASE_COLORS.PHASE_0;
   const statusClass = STATUS_STYLES[node.status];
   const progress =
     node.lessonCount > 0

@@ -30,7 +30,7 @@ export async function buildBadgeContext(userId: string): Promise<BadgeCheckConte
     totalProblems,
     correctProblems: correctCount,
     totalLessons: 0, // TODO: track lesson completions
-    phase: profile?.currentPhase ?? "FOUNDATIONS",
+    phase: profile?.currentPhase ?? "PHASE_0",
     skillMasteries: masteries.map((m) => m.mastery),
   };
 }

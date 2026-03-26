@@ -14,10 +14,10 @@ export async function GET() {
     select: { currentPhase: true },
   });
 
-  const currentPhase = profile?.currentPhase ?? "FOUNDATIONS";
+  const currentPhase = profile?.currentPhase ?? "PHASE_0";
 
   // Phase ordering for determining what's locked
-  const phaseOrder = ["FOUNDATIONS", "EXPLORER", "BUILDER", "CHALLENGER", "IB_READY"];
+  const phaseOrder = ["PHASE_0", "PHASE_1", "PHASE_2", "PHASE_3", "PHASE_4", "PHASE_5", "PHASE_6", "PHASE_7", "PHASE_8", "PHASE_9", "PHASE_10"];
   const currentPhaseIndex = phaseOrder.indexOf(currentPhase);
 
   // Get all topics with lesson counts

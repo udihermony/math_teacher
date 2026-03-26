@@ -116,7 +116,7 @@ export async function POST(
 
     return {
       name: m.user.name,
-      phase: p?.currentPhase ?? "FOUNDATIONS",
+      phase: p?.currentPhase ?? "PHASE_0",
       level: p?.level ?? 1,
       xp: p?.xp ?? 0,
       streak: p?.streak ?? 0,

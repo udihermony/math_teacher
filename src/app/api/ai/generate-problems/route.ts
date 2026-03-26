@@ -6,7 +6,7 @@ import { buildProblemGeneratorPrompt } from "@/modules/ai/prompts/problem-genera
 
 const schema = z.object({
   topic: z.string().min(1),
-  phase: z.enum(["FOUNDATIONS", "EXPLORER", "BUILDER", "CHALLENGER", "IB_READY"]),
+  phase: z.enum(["PHASE_0", "PHASE_1", "PHASE_2", "PHASE_3", "PHASE_4", "PHASE_5", "PHASE_6", "PHASE_7", "PHASE_8", "PHASE_9", "PHASE_10"]),
   count: z.number().int().min(1).max(30),
   difficultyMin: z.number().int().min(1).max(10).default(1),
   difficultyMax: z.number().int().min(1).max(10).default(10),

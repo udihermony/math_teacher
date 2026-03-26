@@ -29,19 +29,31 @@ interface LessonData {
 }
 
 const PHASE_LABELS: Record<string, string> = {
-  FOUNDATIONS: "Foundations",
-  EXPLORER: "Explorer",
-  BUILDER: "Builder",
-  CHALLENGER: "Challenger",
-  IB_READY: "IB Ready",
+  PHASE_0: "Foundations",
+  PHASE_1: "Algebra",
+  PHASE_2: "Functions",
+  PHASE_3: "Sequences & Series",
+  PHASE_4: "Trigonometry",
+  PHASE_5: "Vectors & Geometry",
+  PHASE_6: "Statistics",
+  PHASE_7: "Differentiation",
+  PHASE_8: "Integration",
+  PHASE_9: "HL Topics",
+  PHASE_10: "Exam Prep",
 };
 
 const PHASE_COLORS: Record<string, string> = {
-  FOUNDATIONS: "#22c55e",
-  EXPLORER: "#3b82f6",
-  BUILDER: "#a855f7",
-  CHALLENGER: "#f59e0b",
-  IB_READY: "#ef4444",
+  PHASE_0: "#22c55e",
+  PHASE_1: "#3b82f6",
+  PHASE_2: "#6366f1",
+  PHASE_3: "#a855f7",
+  PHASE_4: "#f59e0b",
+  PHASE_5: "#14b8a6",
+  PHASE_6: "#f43f5e",
+  PHASE_7: "#f97316",
+  PHASE_8: "#ef4444",
+  PHASE_9: "#8b5cf6",
+  PHASE_10: "#64748b",
 };
 
 function lessonStatus(l: LessonData): "not_started" | "in_progress" | "completed" {
@@ -94,7 +106,7 @@ export function TopicBrowser() {
     list.push(t);
     byPhase.set(t.phase, list);
   }
-  const phases = ["FOUNDATIONS", "EXPLORER", "BUILDER", "CHALLENGER", "IB_READY"];
+  const phases = ["PHASE_0", "PHASE_1", "PHASE_2", "PHASE_3", "PHASE_4", "PHASE_5", "PHASE_6", "PHASE_7", "PHASE_8", "PHASE_9", "PHASE_10"];
 
   return (
     <div>

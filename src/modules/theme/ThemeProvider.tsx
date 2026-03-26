@@ -10,9 +10,9 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  phase: "FOUNDATIONS",
+  phase: "PHASE_0",
   setPhase: () => {},
-  tokens: phaseTokens.FOUNDATIONS,
+  tokens: phaseTokens.PHASE_0,
 });
 
 export function useTheme() {
@@ -44,11 +44,11 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({
-  initialPhase = "FOUNDATIONS",
+  initialPhase = "PHASE_0",
   children,
 }: ThemeProviderProps) {
   const [phase, setPhase] = useState(initialPhase);
-  const tokens = phaseTokens[phase] || phaseTokens.FOUNDATIONS;
+  const tokens = phaseTokens[phase] || phaseTokens.PHASE_0;
 
   useEffect(() => {
     applyTokens(tokens);

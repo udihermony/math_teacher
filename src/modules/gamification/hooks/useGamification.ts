@@ -23,7 +23,7 @@ export function useGamification(): GamificationState {
     level: 1,
     progress: 0,
     xpToNext: 0,
-    phase: "FOUNDATIONS",
+    phase: "PHASE_0",
     streak: 0,
     isActiveToday: false,
     badges: [],

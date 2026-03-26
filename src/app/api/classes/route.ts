@@ -47,7 +47,7 @@ export async function GET() {
   return Response.json({ classes });
 }
 
-const phaseEnum = z.enum(["FOUNDATIONS", "EXPLORER", "BUILDER", "CHALLENGER", "IB_READY"]);
+const phaseEnum = z.enum(["PHASE_0", "PHASE_1", "PHASE_2", "PHASE_3", "PHASE_4", "PHASE_5", "PHASE_6", "PHASE_7", "PHASE_8", "PHASE_9", "PHASE_10"]);
 
 const createSchema = z.object({
   name: z.string().min(1).max(100),
@@ -75,8 +75,8 @@ export async function POST(request: NextRequest) {
     data: {
       name: parsed.data.name,
       code,
-      phase: parsed.data.phase ?? "FOUNDATIONS",
-      endPhase: parsed.data.endPhase ?? "IB_READY",
+      phase: parsed.data.phase ?? "PHASE_0",
+      endPhase: parsed.data.endPhase ?? "PHASE_10",
       members: {
         create: {
           userId: session.user.id,

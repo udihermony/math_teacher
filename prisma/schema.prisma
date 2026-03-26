@@ -17,11 +17,17 @@ enum Role {
 }
 
 enum Phase {
-  FOUNDATIONS // Ages 5-8
-  EXPLORER   // Ages 8-11
-  BUILDER    // Ages 11-14
-  CHALLENGER // Ages 14-16
-  IB_READY   // Ages 16-18
+  PHASE_0   // Foundations & Pre-IB Review
+  PHASE_1   // Algebra Fundamentals
+  PHASE_2   // Functions & Equations
+  PHASE_3   // Sequences, Series & Binomial
+  PHASE_4   // Trigonometry
+  PHASE_5   // Coordinate Geometry & Vectors
+  PHASE_6   // Statistics & Probability
+  PHASE_7   // Calculus I — Differentiation
+  PHASE_8   // Calculus II — Integration & Applications
+  PHASE_9   // Complex Numbers, Proof & Further Topics (HL)
+  PHASE_10  // Exam Preparation & Review
 }
 
 enum ProblemType {
@@ -89,7 +95,7 @@ model StudentProfile {
   id             String    @id @default(cuid())
   userId         String    @unique
   user           User      @relation(fields: [userId], references: [id])
-  currentPhase   Phase     @default(FOUNDATIONS)
+  currentPhase   Phase     @default(PHASE_0)
   xp             Int       @default(0)
   level          Int       @default(1)
   coins          Int       @default(0)
@@ -116,9 +122,11 @@ model Topic {
   description String?
   order       Int
   iconUrl     String?
-  lessons       Lesson[]
-  skills        Skill[]
-  conversations Conversation[]
+  estimatedHours Float?
+  ibSection      String?
+  lessons        Lesson[]
+  skills         Skill[]
+  conversations  Conversation[]
 }
 
 model Lesson {
@@ -134,8 +142,11 @@ model Lesson {
   problems      Problem[]
   assignments   ClassAssignment[]
   conversations Conversation[]
-  createdById   String?
-  createdBy   User?    @relation("CreatedBy", fields: [createdById], references: [id])
+  sourceContent  Json?
+  syllabusRef    String?
+  estimatedHours Float?
+  createdById    String?
+  createdBy      User?    @relation("CreatedBy", fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -223,8 +234,8 @@ model Class {
   id          String            @id @default(cuid())
   name        String
   code        String            @unique
-  phase       Phase             @default(FOUNDATIONS)
-  endPhase    Phase             @default(IB_READY)
+  phase       Phase             @default(PHASE_0)
+  endPhase    Phase             @default(PHASE_10)
   members     ClassMembership[]
   assignments ClassAssignment[]
   createdAt   DateTime          @default(now())

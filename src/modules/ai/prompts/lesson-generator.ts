@@ -84,9 +84,15 @@ export function buildLessonGeneratorPrompt(params: {
 }
 
 const phaseAges: Record<string, string> = {
-  FOUNDATIONS: "Ages 5-8 — simple language, concrete examples, counting/basic ops",
-  EXPLORER: "Ages 8-11 — curious explorers, fractions/decimals/geometry",
-  BUILDER: "Ages 11-14 — building skills, algebra/ratio/probability",
-  CHALLENGER: "Ages 14-16 — rising to challenges, quadratics/trig/statistics",
-  IB_READY: "Ages 16-18 — IB exam preparation, calculus/complex numbers/linear algebra",
+  PHASE_0: "Foundations — prerequisite skills, number sense, basic operations",
+  PHASE_1: "Algebra — expressions, equations, inequalities, algebraic reasoning",
+  PHASE_2: "Functions — domain/range, transformations, quadratics, exponentials",
+  PHASE_3: "Sequences & Series — arithmetic, geometric, sigma notation, convergence",
+  PHASE_4: "Trigonometry — unit circle, identities, trig graphs, solving trig equations",
+  PHASE_5: "Vectors & Geometry — vectors, lines, planes, geometric reasoning",
+  PHASE_6: "Statistics — descriptive stats, probability, distributions",
+  PHASE_7: "Differentiation — limits, derivatives, optimization, curve sketching",
+  PHASE_8: "Integration — antiderivatives, definite integrals, area, kinematics",
+  PHASE_9: "HL Topics — advanced content for IB Higher Level",
+  PHASE_10: "Exam Prep — IB exam preparation, past papers, exam technique",
 };

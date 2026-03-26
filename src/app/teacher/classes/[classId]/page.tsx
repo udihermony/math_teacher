@@ -270,11 +270,17 @@ export default function ClassDetailPage({ params }: { params: Promise<{ classId:
             className="rounded-md border border-border bg-background px-2 py-1 text-sm"
             title="Class level"
           >
-            <option value="FOUNDATIONS">Foundations</option>
-            <option value="EXPLORER">Explorer</option>
-            <option value="BUILDER">Builder</option>
-            <option value="CHALLENGER">Challenger</option>
-            <option value="IB_READY">IB Ready</option>
+            <option value="PHASE_0">Foundations</option>
+            <option value="PHASE_1">Algebra</option>
+            <option value="PHASE_2">Functions</option>
+            <option value="PHASE_3">Sequences & Series</option>
+            <option value="PHASE_4">Trigonometry</option>
+            <option value="PHASE_5">Vectors & Geometry</option>
+            <option value="PHASE_6">Statistics</option>
+            <option value="PHASE_7">Differentiation</option>
+            <option value="PHASE_8">Integration</option>
+            <option value="PHASE_9">HL Topics</option>
+            <option value="PHASE_10">Exam Prep</option>
           </select>
         </div>
         <button

@@ -64,7 +64,7 @@ try {
     console.log(`  title: "${sceneName}",`);
     console.log(`  description: "...",`);
     console.log(`  concepts: ["..."],`);
-    console.log(`  phase: ["FOUNDATIONS", "EXPLORER"],`);
+    console.log(`  phase: ["PHASE_0", "PHASE_1"],`);
     console.log(`},`);
   } else {
     console.error("Rendered file not found. Check Manim output above.");

@@ -20,7 +20,7 @@ export default async function StudentLayout({
   }
 
   return (
-    <ThemeProvider initialPhase={session.user.phase || "FOUNDATIONS"}>
+    <ThemeProvider initialPhase={session.user.phase || "PHASE_0"}>
       <div className="flex min-h-full">
         <StudentSidebar user={session.user} />
         <main id="main-content" className="flex-1 p-6">{children}</main>

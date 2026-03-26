@@ -97,7 +97,7 @@ export async function POST(request: Request) {
   // Get AI analysis
   const systemPrompt = buildMistakeAnalysisPrompt({
     submissions,
-    studentPhase: profile?.currentPhase ?? "FOUNDATIONS",
+    studentPhase: profile?.currentPhase ?? "PHASE_0",
     skillNames,
   });
 

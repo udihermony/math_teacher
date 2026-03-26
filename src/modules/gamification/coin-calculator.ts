@@ -2,14 +2,19 @@ import { prisma } from "@/lib/db";
 
 /**
  * Phase multiplier: harder phases pay more.
- * FOUNDATIONS: 1x, EXPLORER: 1.5x, BUILDER: 2x, CHALLENGER: 3x, IB_READY: 4x
  */
 const PHASE_MULTIPLIER: Record<string, number> = {
-  FOUNDATIONS: 1,
-  EXPLORER: 1.5,
-  BUILDER: 2,
-  CHALLENGER: 3,
-  IB_READY: 4,
+  PHASE_0: 1.0,
+  PHASE_1: 1.3,
+  PHASE_2: 1.6,
+  PHASE_3: 1.9,
+  PHASE_4: 2.2,
+  PHASE_5: 2.5,
+  PHASE_6: 2.8,
+  PHASE_7: 3.1,
+  PHASE_8: 3.4,
+  PHASE_9: 3.7,
+  PHASE_10: 4.0,
 };
 
 /** Coins per correct answer based on difficulty (1-10). */

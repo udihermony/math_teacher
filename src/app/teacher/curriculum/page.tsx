@@ -8,11 +8,17 @@ import { CurriculumTree } from "@/modules/teacher/components/CurriculumTree";
 import { Spinner } from "@/components/ui/Spinner";
 
 const PHASES = [
-  { value: "FOUNDATIONS", label: "Foundations" },
-  { value: "EXPLORER", label: "Explorer" },
-  { value: "BUILDER", label: "Builder" },
-  { value: "CHALLENGER", label: "Challenger" },
-  { value: "IB_READY", label: "IB Ready" },
+  { value: "PHASE_0", label: "Foundations" },
+  { value: "PHASE_1", label: "Algebra" },
+  { value: "PHASE_2", label: "Functions" },
+  { value: "PHASE_3", label: "Sequences & Series" },
+  { value: "PHASE_4", label: "Trigonometry" },
+  { value: "PHASE_5", label: "Vectors & Geometry" },
+  { value: "PHASE_6", label: "Statistics" },
+  { value: "PHASE_7", label: "Differentiation" },
+  { value: "PHASE_8", label: "Integration" },
+  { value: "PHASE_9", label: "HL Topics" },
+  { value: "PHASE_10", label: "Exam Prep" },
 ] as const;
 
 interface TopicNode {
@@ -46,7 +52,7 @@ function CurriculumPageInner() {
   const [loading, setLoading] = useState(true);
   const [showNewTopic, setShowNewTopic] = useState(false);
   const [newTopicName, setNewTopicName] = useState("");
-  const [newTopicPhase, setNewTopicPhase] = useState("FOUNDATIONS");
+  const [newTopicPhase, setNewTopicPhase] = useState("PHASE_0");
   const [newTopicDesc, setNewTopicDesc] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -93,7 +99,7 @@ function CurriculumPageInner() {
     if (res.ok) {
       setShowNewTopic(false);
       setNewTopicName("");
-      setNewTopicPhase("FOUNDATIONS");
+      setNewTopicPhase("PHASE_0");
       setNewTopicDesc("");
       fetchCurriculum();
     } else {

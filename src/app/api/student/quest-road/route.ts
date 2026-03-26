@@ -25,8 +25,8 @@ export async function GET() {
   }
 
   const startingPhase = membership.class.phase;
-  const endPhase = membership.class.endPhase ?? ("IB_READY" as Phase);
-  const phaseOrder: Phase[] = ["FOUNDATIONS", "EXPLORER", "BUILDER", "CHALLENGER", "IB_READY"];
+  const endPhase = membership.class.endPhase ?? ("PHASE_10" as Phase);
+  const phaseOrder: Phase[] = ["PHASE_0", "PHASE_1", "PHASE_2", "PHASE_3", "PHASE_4", "PHASE_5", "PHASE_6", "PHASE_7", "PHASE_8", "PHASE_9", "PHASE_10"];
   const startIndex = phaseOrder.indexOf(startingPhase);
   const endIndex = phaseOrder.indexOf(endPhase);
   const activePhases = phaseOrder.slice(startIndex, endIndex + 1);

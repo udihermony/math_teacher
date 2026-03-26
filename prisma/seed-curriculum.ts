@@ -10,7 +10,7 @@ interface TopicDef {
   lessons: { title: string; slug: string; description: string }[];
 }
 
-const EXPLORER_TOPICS: TopicDef[] = [
+const PHASE_1_TOPICS: TopicDef[] = [
   {
     name: "Fractions & Decimals",
     slug: "explorer-fractions-decimals",
@@ -86,7 +86,7 @@ const EXPLORER_TOPICS: TopicDef[] = [
   },
 ];
 
-const BUILDER_TOPICS: TopicDef[] = [
+const PHASE_2_TOPICS: TopicDef[] = [
   {
     name: "Integers & Rational Numbers",
     slug: "builder-integers-rational",
@@ -159,7 +159,7 @@ const BUILDER_TOPICS: TopicDef[] = [
   },
 ];
 
-const CHALLENGER_TOPICS: TopicDef[] = [
+const PHASE_3_TOPICS: TopicDef[] = [
   {
     name: "Sequences & Series",
     slug: "challenger-sequences-series",
@@ -228,7 +228,7 @@ const CHALLENGER_TOPICS: TopicDef[] = [
   },
 ];
 
-const IB_READY_TOPICS: TopicDef[] = [
+const PHASE_10_TOPICS: TopicDef[] = [
   {
     name: "Number & Algebra",
     slug: "ib-number-algebra",
@@ -349,20 +349,20 @@ async function seedPhase(phase: Phase, topicDefs: TopicDef[]) {
 }
 
 async function main() {
-  console.log("\n📚 Seeding EXPLORER phase (ages 8-11)...");
-  await seedPhase(Phase.EXPLORER, EXPLORER_TOPICS);
+  console.log("\n📚 Seeding PHASE_1 (Algebra)...");
+  await seedPhase(Phase.PHASE_1, PHASE_1_TOPICS);
 
-  console.log("\n📚 Seeding BUILDER phase (ages 11-14)...");
-  await seedPhase(Phase.BUILDER, BUILDER_TOPICS);
+  console.log("\n📚 Seeding PHASE_2 (Functions)...");
+  await seedPhase(Phase.PHASE_2, PHASE_2_TOPICS);
 
-  console.log("\n📚 Seeding CHALLENGER phase (pre-IB, ages 14-16)...");
-  await seedPhase(Phase.CHALLENGER, CHALLENGER_TOPICS);
+  console.log("\n📚 Seeding PHASE_3 (Sequences & Series)...");
+  await seedPhase(Phase.PHASE_3, PHASE_3_TOPICS);
 
-  console.log("\n📚 Seeding IB_READY phase (IB AA SL, ages 16-18)...");
-  await seedPhase(Phase.IB_READY, IB_READY_TOPICS);
+  console.log("\n📚 Seeding PHASE_10 (Exam Prep)...");
+  await seedPhase(Phase.PHASE_10, PHASE_10_TOPICS);
 
   // Count totals
-  const phases = [Phase.EXPLORER, Phase.BUILDER, Phase.CHALLENGER, Phase.IB_READY] as const;
+  const phases = [Phase.PHASE_1, Phase.PHASE_2, Phase.PHASE_3, Phase.PHASE_10] as const;
   console.log(`\n✅ Curriculum seeded:`);
   for (const phase of phases) {
     const t = await prisma.topic.count({ where: { phase } });

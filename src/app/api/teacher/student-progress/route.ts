@@ -44,9 +44,9 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "Class not found" }, { status: 404 });
   }
 
-  const phaseOrder: Phase[] = ["FOUNDATIONS", "EXPLORER", "BUILDER", "CHALLENGER", "IB_READY"];
+  const phaseOrder: Phase[] = ["PHASE_0", "PHASE_1", "PHASE_2", "PHASE_3", "PHASE_4", "PHASE_5", "PHASE_6", "PHASE_7", "PHASE_8", "PHASE_9", "PHASE_10"];
   const startIndex = phaseOrder.indexOf(cls.phase);
-  const endIndex = phaseOrder.indexOf(cls.endPhase ?? "IB_READY");
+  const endIndex = phaseOrder.indexOf(cls.endPhase ?? "PHASE_10");
   const activePhases = phaseOrder.slice(startIndex, endIndex + 1);
 
   // Fetch topics with lessons and PRACTICE problems

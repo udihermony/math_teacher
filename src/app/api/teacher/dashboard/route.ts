@@ -142,7 +142,7 @@ export async function GET() {
           level: m.user.studentProfile?.level ?? 0,
           streak: m.user.studentProfile?.streak ?? 0,
           xp: m.user.studentProfile?.xp ?? 0,
-          currentPhase: m.user.studentProfile?.currentPhase ?? "FOUNDATIONS",
+          currentPhase: m.user.studentProfile?.currentPhase ?? "PHASE_0",
         };
       });
 

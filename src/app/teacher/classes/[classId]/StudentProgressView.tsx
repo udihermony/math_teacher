@@ -51,19 +51,31 @@ interface ProgressData {
 }
 
 const PHASE_LABELS: Record<string, string> = {
-  FOUNDATIONS: "Foundations",
-  EXPLORER: "Explorer",
-  BUILDER: "Builder",
-  CHALLENGER: "Challenger",
-  IB_READY: "IB Ready",
+  PHASE_0: "Foundations",
+  PHASE_1: "Algebra",
+  PHASE_2: "Functions",
+  PHASE_3: "Sequences & Series",
+  PHASE_4: "Trigonometry",
+  PHASE_5: "Vectors & Geometry",
+  PHASE_6: "Statistics",
+  PHASE_7: "Differentiation",
+  PHASE_8: "Integration",
+  PHASE_9: "HL Topics",
+  PHASE_10: "Exam Prep",
 };
 
 const PHASE_COLORS: Record<string, string> = {
-  FOUNDATIONS: "bg-green-500",
-  EXPLORER: "bg-blue-500",
-  BUILDER: "bg-purple-500",
-  CHALLENGER: "bg-amber-500",
-  IB_READY: "bg-red-500",
+  PHASE_0: "bg-green-500",
+  PHASE_1: "bg-blue-500",
+  PHASE_2: "bg-purple-500",
+  PHASE_3: "bg-amber-500",
+  PHASE_4: "bg-red-500",
+  PHASE_5: "bg-teal-500",
+  PHASE_6: "bg-orange-500",
+  PHASE_7: "bg-rose-500",
+  PHASE_8: "bg-cyan-500",
+  PHASE_9: "bg-indigo-500",
+  PHASE_10: "bg-violet-500",
 };
 
 function pct(a: number, b: number) {
@@ -156,7 +168,7 @@ function PhaseRow({ phase }: { phase: ProgressPhase }) {
   const [expanded, setExpanded] = useState(
     phase.status === "in_progress" || phase.status === "available"
   );
-  const color = PHASE_COLORS[phase.phase] || PHASE_COLORS.FOUNDATIONS;
+  const color = PHASE_COLORS[phase.phase] || PHASE_COLORS.PHASE_0;
   const completedTopics = phase.topics.filter((t) => t.status === "completed").length;
 
   return (

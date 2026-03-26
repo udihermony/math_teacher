@@ -22,17 +22,23 @@ export default function TeacherClassesPage() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
-  const [startPhase, setStartPhase] = useState("FOUNDATIONS");
-  const [endPhase, setEndPhase] = useState("IB_READY");
+  const [startPhase, setStartPhase] = useState("PHASE_0");
+  const [endPhase, setEndPhase] = useState("PHASE_10");
   const [creating, setCreating] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   const PHASES = [
-    { value: "FOUNDATIONS", label: "Foundations" },
-    { value: "EXPLORER", label: "Explorer" },
-    { value: "BUILDER", label: "Builder" },
-    { value: "CHALLENGER", label: "Challenger" },
-    { value: "IB_READY", label: "IB Ready" },
+    { value: "PHASE_0", label: "Foundations" },
+    { value: "PHASE_1", label: "Algebra" },
+    { value: "PHASE_2", label: "Functions" },
+    { value: "PHASE_3", label: "Sequences & Series" },
+    { value: "PHASE_4", label: "Trigonometry" },
+    { value: "PHASE_5", label: "Vectors & Geometry" },
+    { value: "PHASE_6", label: "Statistics" },
+    { value: "PHASE_7", label: "Differentiation" },
+    { value: "PHASE_8", label: "Integration" },
+    { value: "PHASE_9", label: "HL Topics" },
+    { value: "PHASE_10", label: "Exam Prep" },
   ];
 
   const fetchClasses = useCallback(async () => {

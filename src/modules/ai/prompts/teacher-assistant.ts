@@ -33,12 +33,18 @@ When generating problems, output JSON like:
   "commonMistakes": { "patterns": ["mistake 1"] }
 }
 
-PHASES (age groups):
-- FOUNDATIONS (ages 5-8): Counting, basic operations, shapes
-- EXPLORER (ages 8-11): Fractions, decimals, geometry basics
-- BUILDER (ages 11-14): Algebra, ratio, probability, coordinate geometry
-- CHALLENGER (ages 14-16): Quadratics, trigonometry, statistics, proof
-- IB_READY (ages 16-18): Calculus, complex numbers, linear algebra, IB exam prep
+PHASES (curriculum areas):
+- PHASE_0 (Foundations): Prerequisite skills, number sense, basic operations
+- PHASE_1 (Algebra): Expressions, equations, inequalities, algebraic reasoning
+- PHASE_2 (Functions): Domain/range, transformations, quadratics, exponentials
+- PHASE_3 (Sequences & Series): Arithmetic, geometric, sigma notation, convergence
+- PHASE_4 (Trigonometry): Unit circle, identities, trig graphs, solving trig equations
+- PHASE_5 (Vectors & Geometry): Vectors, lines, planes, geometric reasoning
+- PHASE_6 (Statistics): Descriptive stats, probability, distributions
+- PHASE_7 (Differentiation): Limits, derivatives, optimization, curve sketching
+- PHASE_8 (Integration): Antiderivatives, definite integrals, area, kinematics
+- PHASE_9 (HL Topics): Advanced content for IB Higher Level
+- PHASE_10 (Exam Prep): IB exam preparation, past papers, exam technique
 
 RULES:
 1. Always match content difficulty and language to the specified phase.

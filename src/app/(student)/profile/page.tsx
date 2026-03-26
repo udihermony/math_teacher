@@ -35,11 +35,17 @@ export default async function StudentProfilePage() {
   });
 
   const PHASE_LABELS: Record<string, string> = {
-    FOUNDATIONS: "Foundations",
-    EXPLORER: "Explorer",
-    BUILDER: "Builder",
-    CHALLENGER: "Challenger",
-    IB_READY: "IB Ready",
+    PHASE_0: "Foundations",
+    PHASE_1: "Algebra",
+    PHASE_2: "Functions",
+    PHASE_3: "Sequences & Series",
+    PHASE_4: "Trigonometry",
+    PHASE_5: "Vectors & Geometry",
+    PHASE_6: "Statistics",
+    PHASE_7: "Differentiation",
+    PHASE_8: "Integration",
+    PHASE_9: "HL Topics",
+    PHASE_10: "Exam Prep",
   };
 
   return (
@@ -74,7 +80,7 @@ export default async function StudentProfilePage() {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Current Phase</span>
-              <Badge variant="primary">{PHASE_LABELS[profile?.currentPhase ?? "FOUNDATIONS"]}</Badge>
+              <Badge variant="primary">{PHASE_LABELS[profile?.currentPhase ?? "PHASE_0"]}</Badge>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Problems Attempted</span>

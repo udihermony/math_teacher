@@ -20,7 +20,7 @@ export async function buildCompanionContext(
   if (!user || !user.studentProfile) {
     return {
       studentName: user?.name ?? "Student",
-      phase: "FOUNDATIONS",
+      phase: "PHASE_0",
       xp: 0,
       level: 1,
       streak: 0,

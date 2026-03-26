@@ -27,11 +27,17 @@ interface Message {
 type Mode = "chat" | "generate-lesson" | "generate-problems" | "synthesize";
 
 const PHASES = [
-  { value: "FOUNDATIONS", label: "Foundations (5-8)" },
-  { value: "EXPLORER", label: "Explorer (8-11)" },
-  { value: "BUILDER", label: "Builder (11-14)" },
-  { value: "CHALLENGER", label: "Challenger (14-16)" },
-  { value: "IB_READY", label: "IB Ready (16-18)" },
+  { value: "PHASE_0", label: "Foundations" },
+  { value: "PHASE_1", label: "Algebra" },
+  { value: "PHASE_2", label: "Functions" },
+  { value: "PHASE_3", label: "Sequences & Series" },
+  { value: "PHASE_4", label: "Trigonometry" },
+  { value: "PHASE_5", label: "Vectors & Geometry" },
+  { value: "PHASE_6", label: "Statistics" },
+  { value: "PHASE_7", label: "Differentiation" },
+  { value: "PHASE_8", label: "Integration" },
+  { value: "PHASE_9", label: "HL Topics" },
+  { value: "PHASE_10", label: "Exam Prep" },
 ];
 
 let idCounter = 0;
@@ -56,12 +62,12 @@ function AIAssistantInner() {
 
   // Generate lesson form state
   const [genTopic, setGenTopic] = useState("");
-  const [genPhase, setGenPhase] = useState("BUILDER");
+  const [genPhase, setGenPhase] = useState("PHASE_2");
   const [genInstructions, setGenInstructions] = useState("");
 
   // Generate problems form state
   const [probTopic, setProbTopic] = useState("");
-  const [probPhase, setProbPhase] = useState("BUILDER");
+  const [probPhase, setProbPhase] = useState("PHASE_2");
   const [probCount, setProbCount] = useState(10);
   const [probDiffMin, setProbDiffMin] = useState(3);
   const [probDiffMax, setProbDiffMax] = useState(7);
@@ -69,7 +75,7 @@ function AIAssistantInner() {
 
   // File upload state
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
-  const [synthPhase, setSynthPhase] = useState("BUILDER");
+  const [synthPhase, setSynthPhase] = useState("PHASE_2");
   const [synthInstructions, setSynthInstructions] = useState("");
 
   // Topics & lessons for save flow
@@ -120,7 +126,7 @@ function AIAssistantInner() {
     const action = searchParams.get("action");
     if (!action) return;
 
-    const phase = searchParams.get("phase") || "BUILDER";
+    const phase = searchParams.get("phase") || "PHASE_2";
 
     if (action === "suggest-topics") {
       setMode("chat");
@@ -691,9 +697,9 @@ function AIAssistantInner() {
             {mode === "chat" && (
               <div className="mt-6 flex flex-wrap justify-center gap-2">
                 {[
-                  "Create a lesson on fractions for Explorer phase",
+                  "Create a lesson on fractions for Algebra phase",
                   "Generate 10 algebra problems, difficulty 4-6",
-                  "Suggest a topic sequence for the Builder phase",
+                  "Suggest a topic sequence for the Functions phase",
                 ].map((s) => (
                   <button
                     key={s}

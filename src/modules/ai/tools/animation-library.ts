@@ -29,7 +29,7 @@ export const ANIMATION_LIBRARY: AnimationEntry[] = [
   //   title: "Adding Fractions Visually",
   //   description: "Shows how to find common denominators and add fractions using area models",
   //   concepts: ["fractions", "addition", "common denominator", "LCD"],
-  //   phase: ["FOUNDATIONS", "EXPLORER"],
+  //   phase: ["PHASE_0", "PHASE_1"],
   // },
   // {
   //   id: "number-line-basics",
@@ -37,7 +37,7 @@ export const ANIMATION_LIBRARY: AnimationEntry[] = [
   //   title: "The Number Line",
   //   description: "Introduces positive and negative numbers on a number line with animated jumps",
   //   concepts: ["number line", "integers", "negative numbers", "addition", "subtraction"],
-  //   phase: ["FOUNDATIONS", "EXPLORER"],
+  //   phase: ["PHASE_0", "PHASE_1"],
   // },
   // {
   //   id: "quadratic-graph",
@@ -45,7 +45,7 @@ export const ANIMATION_LIBRARY: AnimationEntry[] = [
   //   title: "Quadratic Functions",
   //   description: "Shows how changing a, b, c in ax² + bx + c transforms the parabola",
   //   concepts: ["quadratic", "parabola", "graph transformation", "vertex"],
-  //   phase: ["BUILDER", "CHALLENGER"],
+  //   phase: ["PHASE_2", "PHASE_3"],
   // },
 ];
 

@@ -8,7 +8,7 @@ const schema = z.object({
   fileName: z.string(),
   fileType: z.string(),
   fileBase64: z.string(),
-  phase: z.enum(["FOUNDATIONS", "EXPLORER", "BUILDER", "CHALLENGER", "IB_READY"]),
+  phase: z.enum(["PHASE_0", "PHASE_1", "PHASE_2", "PHASE_3", "PHASE_4", "PHASE_5", "PHASE_6", "PHASE_7", "PHASE_8", "PHASE_9", "PHASE_10"]),
   instructions: z.string().optional(),
 });
 

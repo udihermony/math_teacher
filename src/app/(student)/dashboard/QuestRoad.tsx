@@ -67,19 +67,31 @@ interface QuestData {
 // ── Constants ────────────────────────────────────────
 
 const PHASE_LABELS: Record<string, string> = {
-  FOUNDATIONS: "Foundations",
-  EXPLORER: "Explorer",
-  BUILDER: "Builder",
-  CHALLENGER: "Challenger",
-  IB_READY: "IB Ready",
+  PHASE_0: "Foundations",
+  PHASE_1: "Algebra",
+  PHASE_2: "Functions",
+  PHASE_3: "Sequences & Series",
+  PHASE_4: "Trigonometry",
+  PHASE_5: "Vectors & Geometry",
+  PHASE_6: "Statistics",
+  PHASE_7: "Differentiation",
+  PHASE_8: "Integration",
+  PHASE_9: "HL Topics",
+  PHASE_10: "Exam Prep",
 };
 
 const PHASE_COLORS: Record<string, { bg: string; ring: string; text: string }> = {
-  FOUNDATIONS: { bg: "bg-green-500", ring: "ring-green-400", text: "text-green-500" },
-  EXPLORER: { bg: "bg-blue-500", ring: "ring-blue-400", text: "text-blue-500" },
-  BUILDER: { bg: "bg-purple-500", ring: "ring-purple-400", text: "text-purple-500" },
-  CHALLENGER: { bg: "bg-amber-500", ring: "ring-amber-400", text: "text-amber-500" },
-  IB_READY: { bg: "bg-red-500", ring: "ring-red-400", text: "text-red-500" },
+  PHASE_0: { bg: "bg-green-500", ring: "ring-green-400", text: "text-green-500" },
+  PHASE_1: { bg: "bg-blue-500", ring: "ring-blue-400", text: "text-blue-500" },
+  PHASE_2: { bg: "bg-indigo-500", ring: "ring-indigo-400", text: "text-indigo-500" },
+  PHASE_3: { bg: "bg-purple-500", ring: "ring-purple-400", text: "text-purple-500" },
+  PHASE_4: { bg: "bg-amber-500", ring: "ring-amber-400", text: "text-amber-500" },
+  PHASE_5: { bg: "bg-teal-500", ring: "ring-teal-400", text: "text-teal-500" },
+  PHASE_6: { bg: "bg-rose-500", ring: "ring-rose-400", text: "text-rose-500" },
+  PHASE_7: { bg: "bg-orange-500", ring: "ring-orange-400", text: "text-orange-500" },
+  PHASE_8: { bg: "bg-red-500", ring: "ring-red-400", text: "text-red-500" },
+  PHASE_9: { bg: "bg-violet-500", ring: "ring-violet-400", text: "text-violet-500" },
+  PHASE_10: { bg: "bg-slate-500", ring: "ring-slate-400", text: "text-slate-500" },
 };
 
 // ── Helpers ──────────────────────────────────────────
@@ -237,7 +249,7 @@ function PhaseSection({
   isLast: boolean;
   activeRef: React.RefObject<HTMLDivElement | null>;
 }) {
-  const colors = PHASE_COLORS[phase.phase] || PHASE_COLORS.FOUNDATIONS;
+  const colors = PHASE_COLORS[phase.phase] || PHASE_COLORS.PHASE_0;
   const isActive = phase.status === "in_progress" || phase.status === "available";
   const [expanded, setExpanded] = useState(
     phase.status === "in_progress" || phase.status === "available"
@@ -373,7 +385,7 @@ function TopicSection({
   const [expanded, setExpanded] = useState(
     topic.status === "in_progress" || topic.status === "available"
   );
-  const colors = PHASE_COLORS[phase] || PHASE_COLORS.FOUNDATIONS;
+  const colors = PHASE_COLORS[phase] || PHASE_COLORS.PHASE_0;
   const isActive = topic.status === "in_progress" || topic.status === "available";
   const completedLessons = topic.lessons.filter((l) => l.status === "completed").length;
   const progressPct = topic.lessons.length > 0 ? pct(completedLessons, topic.lessons.length) : 0;

@@ -6,7 +6,7 @@ import { buildLessonGeneratorPrompt } from "@/modules/ai/prompts/lesson-generato
 
 const schema = z.object({
   topic: z.string().min(1),
-  phase: z.enum(["FOUNDATIONS", "EXPLORER", "BUILDER", "CHALLENGER", "IB_READY"]),
+  phase: z.enum(["PHASE_0", "PHASE_1", "PHASE_2", "PHASE_3", "PHASE_4", "PHASE_5", "PHASE_6", "PHASE_7", "PHASE_8", "PHASE_9", "PHASE_10"]),
   additionalInstructions: z.string().optional(),
 });
 

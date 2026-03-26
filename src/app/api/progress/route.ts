@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!alreadySolvedThis && problem.lesson?.id) {
-      const phase = problem.lesson.topic?.phase ?? "FOUNDATIONS";
+      const phase = problem.lesson.topic?.phase ?? "PHASE_0";
       const answerCoin = await awardAnswerCoin(session.user.id, problem.lesson.id, problem.difficulty, phase);
       coinsEarned += answerCoin;
 

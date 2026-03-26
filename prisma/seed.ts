@@ -31,7 +31,7 @@ async function main() {
       passwordHash,
       studentProfile: {
         create: {
-          currentPhase: Phase.FOUNDATIONS,
+          currentPhase: Phase.PHASE_0,
           xp: 0,
           level: 1,
           streak: 0,
@@ -59,7 +59,7 @@ async function main() {
   // Create a sample topic
   const topic = await prisma.topic.create({
     data: {
-      phase: Phase.FOUNDATIONS,
+      phase: Phase.PHASE_0,
       name: "Counting & Numbers",
       slug: "counting-and-numbers",
       description: "Learn to count, recognize numbers, and understand basic quantity.",

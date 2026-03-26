@@ -165,32 +165,46 @@ export const BADGES: BadgeWithCheck[] = [
 
   // ── Explorer badges ─────────────────────────────────
   {
-    slug: "phase-explorer",
-    name: "Phase Explorer",
-    description: "Advance to Explorer phase",
+    slug: "phase-1",
+    name: "Algebra Apprentice",
+    description: "Advance to Phase 1 (Algebra)",
     icon: "Compass",
     category: "explorer",
-    rarity: "uncommon",
-    check: (ctx) => ctx.phase !== "FOUNDATIONS",
+    rarity: "common",
+    check: (ctx) => ctx.phase !== "PHASE_0",
   },
   {
-    slug: "phase-builder",
-    name: "Master Builder",
-    description: "Advance to Builder phase",
+    slug: "phase-3",
+    name: "Series Scholar",
+    description: "Advance to Phase 3 (Sequences & Series)",
     icon: "Hammer",
     category: "explorer",
-    rarity: "rare",
-    check: (ctx) =>
-      ["BUILDER", "CHALLENGER", "IB_READY"].includes(ctx.phase),
+    rarity: "uncommon",
+    check: (ctx) => {
+      const idx = parseInt(ctx.phase.replace("PHASE_", ""), 10);
+      return idx >= 3;
+    },
   },
   {
-    slug: "phase-ib",
-    name: "IB Scholar",
-    description: "Reach IB Ready phase",
+    slug: "phase-6",
+    name: "Statistics Savant",
+    description: "Advance to Phase 6 (Statistics)",
+    icon: "BarChart",
+    category: "explorer",
+    rarity: "rare",
+    check: (ctx) => {
+      const idx = parseInt(ctx.phase.replace("PHASE_", ""), 10);
+      return idx >= 6;
+    },
+  },
+  {
+    slug: "phase-10",
+    name: "Exam Ready",
+    description: "Reach Phase 10 (Exam Prep)",
     icon: "GraduationCap",
     category: "explorer",
     rarity: "legendary",
-    check: (ctx) => ctx.phase === "IB_READY",
+    check: (ctx) => ctx.phase === "PHASE_10",
   },
 
   // ── Level badges ────────────────────────────────────
