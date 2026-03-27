@@ -12,8 +12,12 @@ import {
   CheckCircle2,
   UserPlus,
   GraduationCap,
+  FileText,
+  ClipboardCheck,
+  Hourglass,
+  Trophy,
 } from "lucide-react";
-import type { PendingAssignment } from "./page";
+import type { PendingAssignment, TestRequestInfo } from "./page";
 
 interface ClassDashboardProps {
   userName: string;
@@ -27,6 +31,7 @@ interface ClassDashboardProps {
   totalAssignments: number;
   completedAssignments: number;
   pendingAssignments: PendingAssignment[];
+  testRequests: TestRequestInfo[];
 }
 
 export function ClassDashboard({
@@ -41,6 +46,7 @@ export function ClassDashboard({
   totalAssignments,
   completedAssignments,
   pendingAssignments,
+  testRequests,
 }: ClassDashboardProps) {
   if (!hasClass) {
     return (
@@ -143,6 +149,54 @@ export function ClassDashboard({
         </div>
       )}
 
+      {/* Tests */}
+      {testRequests.length > 0 && (
+        <div className="mt-6">
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
+            <FileText size={18} className="text-blue-500" />
+            Tests
+          </h2>
+          <div className="space-y-2">
+            {testRequests.map((tr) => {
+              const statusConfig = getTestStatusConfig(tr.status, tr.score);
+              return (
+                <div
+                  key={tr.id}
+                  className={`flex items-center gap-3 rounded-lg border px-4 py-3 ${statusConfig.containerClass}`}
+                >
+                  {statusConfig.icon}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">{tr.testTitle}</p>
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none ${statusConfig.badgeClass}`}>
+                        {statusConfig.label}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {tr.questionCount} questions
+                      {tr.durationMinutes && ` · ${tr.durationMinutes} min`}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    {tr.status === "COMPLETED" && tr.score !== null && (
+                      <p className="text-sm font-medium">{tr.score}%</p>
+                    )}
+                    {tr.status === "APPROVED" && tr.approvalCode && (
+                      <p className="font-mono text-sm font-bold tracking-wider text-blue-600">{tr.approvalCode}</p>
+                    )}
+                  </div>
+                  {(tr.status === "APPROVED" || tr.status === "STARTED") && (
+                    <Link href={`/tests/${tr.id}`}>
+                      <ArrowRight size={16} className="text-blue-600" />
+                    </Link>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Completed assignments */}
       {completedAssignments > 0 && pendingAssignments.length === 0 && (
         <div className="mt-6 rounded-lg border border-green-200 bg-green-50 p-6 text-center dark:border-green-900/50 dark:bg-green-950/20">
@@ -171,6 +225,50 @@ export function ClassDashboard({
       </div>
     </div>
   );
+}
+
+function getTestStatusConfig(status: string, score: number | null) {
+  switch (status) {
+    case "PENDING":
+      return {
+        icon: <Hourglass size={16} className="shrink-0 text-gray-400" />,
+        label: "Pending",
+        badgeClass: "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+        containerClass: "border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-950/30",
+      };
+    case "APPROVED":
+      return {
+        icon: <ClipboardCheck size={16} className="shrink-0 text-blue-500" />,
+        label: "Ready",
+        badgeClass: "bg-blue-200 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300",
+        containerClass: "border-blue-200 bg-blue-50 dark:border-blue-900/50 dark:bg-blue-950/30",
+      };
+    case "STARTED":
+      return {
+        icon: <Clock size={16} className="shrink-0 text-orange-500" />,
+        label: "In Progress",
+        badgeClass: "bg-orange-200 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300",
+        containerClass: "border-orange-200 bg-orange-50 dark:border-orange-900/50 dark:bg-orange-950/30",
+      };
+    case "COMPLETED":
+      return {
+        icon: <Trophy size={16} className={`shrink-0 ${score !== null && score >= 70 ? "text-green-500" : "text-red-500"}`} />,
+        label: "Done",
+        badgeClass: score !== null && score >= 70
+          ? "bg-green-200 text-green-800 dark:bg-green-900/50 dark:text-green-300"
+          : "bg-red-200 text-red-800 dark:bg-red-900/50 dark:text-red-300",
+        containerClass: score !== null && score >= 70
+          ? "border-green-200 bg-green-50 dark:border-green-900/50 dark:bg-green-950/30"
+          : "border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30",
+      };
+    default:
+      return {
+        icon: <FileText size={16} className="shrink-0 text-muted-foreground" />,
+        label: status,
+        badgeClass: "bg-gray-200 text-gray-700",
+        containerClass: "border-border",
+      };
+  }
 }
 
 function StatCard({

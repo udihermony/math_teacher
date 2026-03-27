@@ -17,6 +17,16 @@ export interface PendingAssignment {
   note: string | null;
 }
 
+export interface TestRequestInfo {
+  id: string;
+  testTitle: string;
+  questionCount: number;
+  durationMinutes: number | null;
+  status: string;
+  score: number | null;
+  approvalCode: string | null;
+}
+
 export default async function StudentDashboard() {
   const session = await auth();
   const userId = session?.user?.id;
@@ -30,6 +40,7 @@ export default async function StudentDashboard() {
   let className: string | null = null;
   let teacherName: string | null = null;
   let pendingAssignments: PendingAssignment[] = [];
+  let testRequests: TestRequestInfo[] = [];
   let hasClass = false;
 
   if (userId) {
@@ -158,6 +169,28 @@ export default async function StudentDashboard() {
           });
         }
       }
+
+      // Fetch test requests for this student
+      const dbTestRequests = await prisma.testRequest.findMany({
+        where: {
+          studentId: userId,
+          test: { classId: membership.classId },
+        },
+        include: {
+          test: { select: { title: true, questionCount: true, durationMinutes: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      testRequests = dbTestRequests.map((tr) => ({
+        id: tr.id,
+        testTitle: tr.test.title,
+        questionCount: tr.test.questionCount,
+        durationMinutes: tr.test.durationMinutes,
+        status: tr.status,
+        score: tr.score,
+        approvalCode: tr.approvalCode,
+      }));
     }
   }
 
@@ -174,6 +207,7 @@ export default async function StudentDashboard() {
       totalAssignments={totalLessons}
       completedAssignments={completedLessons}
       pendingAssignments={pendingAssignments}
+      testRequests={testRequests}
     />
   );
 }
