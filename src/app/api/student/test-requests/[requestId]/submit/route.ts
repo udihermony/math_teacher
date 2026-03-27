@@ -27,6 +27,10 @@ export async function POST(
     return Response.json({ error: "Request not found" }, { status: 404 });
   }
 
+  if (testRequest.status === "COMPLETED") {
+    return Response.json({ error: "Test already submitted", score: testRequest.score }, { status: 409 });
+  }
+
   if (testRequest.status !== "STARTED") {
     return Response.json({ error: "Test not in progress" }, { status: 400 });
   }
@@ -55,9 +59,11 @@ export async function POST(
     let isCorrect = false;
 
     if (problem.type === "MULTIPLE_CHOICE") {
-      isCorrect = (answer.selectedIndex as number) === (content.correctIndex as number);
+      isCorrect = answer.selectedIndex != null && (answer.selectedIndex as number) === (content.correctIndex as number);
     } else if (problem.type === "FREE_INPUT") {
-      isCorrect = validateAnswer(answer.value as string, content.correctAnswer as string);
+      const studentAnswer = (answer.value as string) ?? "";
+      const correctAnswer = (content.correctAnswer as string) ?? "";
+      isCorrect = studentAnswer !== "" && correctAnswer !== "" && validateAnswer(studentAnswer, correctAnswer);
     }
 
     if (isCorrect) score++;
