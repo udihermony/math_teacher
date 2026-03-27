@@ -26,6 +26,7 @@ export async function generateTestProblems({
     title: string;
     description: string | null;
     content: unknown;
+    sourceContent: unknown;
     syllabusRef: string | null;
   }> = [];
   const existingProblems: Array<{ type: string; difficulty: number; question: string }> = [];
@@ -43,7 +44,7 @@ export async function generateTestProblems({
     topicName = `${lesson.topic.name} — ${lesson.title}`;
     phase = lesson.topic.phase;
     lessonId = lesson.id;
-    lessonDetails.push({ title: lesson.title, description: lesson.description, content: lesson.content, syllabusRef: lesson.syllabusRef });
+    lessonDetails.push({ title: lesson.title, description: lesson.description, content: lesson.content, sourceContent: lesson.sourceContent, syllabusRef: lesson.syllabusRef });
     for (const p of lesson.problems) {
       const c = p.content as Record<string, unknown>;
       existingProblems.push({ type: p.type, difficulty: p.difficulty, question: (c.question as string) ?? "" });
@@ -54,7 +55,7 @@ export async function generateTestProblems({
       where: { id: scopeId },
       include: {
         lessons: {
-          select: { id: true, title: true, description: true, content: true, syllabusRef: true, problems: { select: { type: true, difficulty: true, content: true }, take: 5 } },
+          select: { id: true, title: true, description: true, content: true, sourceContent: true, syllabusRef: true, problems: { select: { type: true, difficulty: true, content: true }, take: 5 } },
           orderBy: { order: "asc" },
         },
         skills: { select: { name: true, description: true } },
@@ -65,7 +66,7 @@ export async function generateTestProblems({
     phase = topic.phase;
     lessonId = topic.lessons[0]?.id ?? null;
     for (const l of topic.lessons) {
-      lessonDetails.push({ title: l.title, description: l.description, content: l.content, syllabusRef: l.syllabusRef });
+      lessonDetails.push({ title: l.title, description: l.description, content: l.content, sourceContent: l.sourceContent, syllabusRef: l.syllabusRef });
       for (const p of l.problems) {
         const c = p.content as Record<string, unknown>;
         existingProblems.push({ type: p.type, difficulty: p.difficulty, question: (c.question as string) ?? "" });
@@ -79,7 +80,7 @@ export async function generateTestProblems({
       where: { phase: scopeId as never },
       include: {
         lessons: {
-          select: { id: true, title: true, description: true, content: true, syllabusRef: true, problems: { select: { type: true, difficulty: true, content: true }, take: 3 } },
+          select: { id: true, title: true, description: true, content: true, sourceContent: true, syllabusRef: true, problems: { select: { type: true, difficulty: true, content: true }, take: 3 } },
           orderBy: { order: "asc" },
         },
         skills: { select: { name: true, description: true } },
@@ -89,7 +90,7 @@ export async function generateTestProblems({
     lessonId = topics[0]?.lessons[0]?.id ?? null;
     for (const t of topics) {
       for (const l of t.lessons) {
-        lessonDetails.push({ title: l.title, description: l.description, content: l.content, syllabusRef: l.syllabusRef });
+        lessonDetails.push({ title: l.title, description: l.description, content: l.content, sourceContent: l.sourceContent, syllabusRef: l.syllabusRef });
         for (const p of l.problems) {
           const c = p.content as Record<string, unknown>;
           existingProblems.push({ type: p.type, difficulty: p.difficulty, question: (c.question as string) ?? "" });
@@ -108,6 +109,10 @@ export async function generateTestProblems({
       contextParts.push(`\n## ${l.title}`);
       if (l.description) contextParts.push(`Description: ${l.description}`);
       if (l.syllabusRef) contextParts.push(`Syllabus reference: ${l.syllabusRef}`);
+      if (l.sourceContent) {
+        const scStr = typeof l.sourceContent === "string" ? l.sourceContent : JSON.stringify(l.sourceContent);
+        contextParts.push(`Learning context: ${scStr.slice(0, 1500)}`);
+      }
       if (l.content) {
         const contentStr = typeof l.content === "string" ? l.content : JSON.stringify(l.content);
         // Truncate very large content to stay within token limits

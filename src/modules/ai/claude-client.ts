@@ -115,6 +115,56 @@ export async function agentClaude({
   });
 }
 
+/**
+ * Research-mode call: uses web search + extended thinking for deep research.
+ * Returns the final text content from the response.
+ */
+export async function researchClaude({
+  userId,
+  systemPrompt,
+  messages,
+  maxTokens = 8192,
+}: AskOptions): Promise<AIResponse> {
+  if (!rateLimiter.check(userId)) {
+    throw new Error("Rate limit exceeded. Please wait a moment.");
+  }
+
+  rateLimiter.record(userId);
+
+  const anthropic = getClient();
+
+  const response = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: maxTokens,
+    system: systemPrompt,
+    messages,
+    thinking: {
+      type: "enabled",
+      budget_tokens: 5000,
+    },
+    tools: [
+      {
+        type: "web_search_20250305",
+        name: "web_search",
+        max_uses: 5,
+      },
+    ],
+  });
+
+  // Extract all text blocks from the response (skip thinking/tool blocks)
+  const textParts = response.content
+    .filter((c): c is Anthropic.TextBlock => c.type === "text")
+    .map((c) => c.text);
+
+  return {
+    content: textParts.join("\n"),
+    usage: {
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+    },
+  };
+}
+
 export async function* streamClaude({
   userId,
   systemPrompt,

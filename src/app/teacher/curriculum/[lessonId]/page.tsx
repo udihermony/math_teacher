@@ -3,10 +3,20 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, Search, Loader2, BookOpen, AlertTriangle, Link2, Zap } from "lucide-react";
 import { LessonEditor } from "@/modules/teacher/components/LessonEditor";
 import { Spinner } from "@/components/ui/Spinner";
 import { Badge } from "@/components/ui/Badge";
+
+interface LearningContext {
+  keyConcepts?: string[];
+  formulas?: string[];
+  commonMisconceptions?: string[];
+  ibExamStyles?: string[];
+  connections?: string[];
+  difficultyProgression?: string;
+  teachingNotes?: string;
+}
 
 interface LessonData {
   id: string;
@@ -14,6 +24,7 @@ interface LessonData {
   slug: string;
   description: string | null;
   content: { blocks: ContentBlock[] };
+  sourceContent: LearningContext | null;
   xpReward: number;
   topic: { id: string; name: string; phase: string };
   problems: ProblemData[];
@@ -47,6 +58,12 @@ export default function EditLessonPage({
   const [lesson, setLesson] = useState<LessonData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [researching, setResearching] = useState(false);
+  const [researchResult, setResearchResult] = useState<{
+    skillsCreated: number;
+    learningContext: LearningContext;
+  } | null>(null);
+  const [researchError, setResearchError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/teacher/lessons/${lessonId}`)
@@ -87,6 +104,34 @@ export default function EditLessonPage({
     }
   }
 
+  async function handleResearch() {
+    setResearching(true);
+    setResearchError(null);
+    setResearchResult(null);
+    try {
+      const res = await fetch(`/api/teacher/lessons/${lessonId}/research`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setResearchResult({
+          skillsCreated: data.skillsCreated,
+          learningContext: data.learningContext,
+        });
+        // Update lesson's sourceContent locally
+        if (lesson) {
+          setLesson({ ...lesson, sourceContent: data.learningContext });
+        }
+      } else {
+        const data = await res.json();
+        setResearchError(data.error || "Research failed");
+      }
+    } catch {
+      setResearchError("Failed to connect to research service");
+    }
+    setResearching(false);
+  }
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -116,6 +161,138 @@ export default function EditLessonPage({
             {lesson.topic.name} — {lesson.topic.phase}
           </p>
         </div>
+      </div>
+
+      {/* Research & Enrich */}
+      <div className="mb-6 rounded-lg border border-border bg-card p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold flex items-center gap-1.5">
+              <Search size={14} className="text-primary" />
+              AI Research & Enrich
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Uses web search to research this topic and generate skills + learning context
+            </p>
+          </div>
+          <button
+            onClick={handleResearch}
+            disabled={researching}
+            className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          >
+            {researching ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                Researching...
+              </>
+            ) : (
+              <>
+                <Search size={14} />
+                Research
+              </>
+            )}
+          </button>
+        </div>
+
+        {researchError && (
+          <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {researchError}
+          </div>
+        )}
+
+        {researchResult && (
+          <div className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800 dark:border-green-900 dark:bg-green-950/30 dark:text-green-400">
+            Generated {researchResult.skillsCreated} skills and saved learning context.
+          </div>
+        )}
+
+        {/* Display existing or newly generated learning context */}
+        {lesson.sourceContent && (
+          <div className="mt-4 space-y-3 text-sm">
+            {lesson.sourceContent.keyConcepts && lesson.sourceContent.keyConcepts.length > 0 && (
+              <div>
+                <h4 className="font-medium flex items-center gap-1 text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                  <BookOpen size={12} /> Key Concepts
+                </h4>
+                <ul className="list-disc list-inside space-y-0.5 text-foreground">
+                  {lesson.sourceContent.keyConcepts.map((c, i) => (
+                    <li key={i}>{c}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {lesson.sourceContent.formulas && lesson.sourceContent.formulas.length > 0 && (
+              <div>
+                <h4 className="font-medium flex items-center gap-1 text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                  <Zap size={12} /> Formulas
+                </h4>
+                <ul className="list-disc list-inside space-y-0.5 text-foreground font-mono text-xs">
+                  {lesson.sourceContent.formulas.map((f, i) => (
+                    <li key={i}>{f}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {lesson.sourceContent.commonMisconceptions && lesson.sourceContent.commonMisconceptions.length > 0 && (
+              <div>
+                <h4 className="font-medium flex items-center gap-1 text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                  <AlertTriangle size={12} /> Common Misconceptions
+                </h4>
+                <ul className="list-disc list-inside space-y-0.5 text-foreground">
+                  {lesson.sourceContent.commonMisconceptions.map((m, i) => (
+                    <li key={i}>{m}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {lesson.sourceContent.connections && lesson.sourceContent.connections.length > 0 && (
+              <div>
+                <h4 className="font-medium flex items-center gap-1 text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                  <Link2 size={12} /> Connections
+                </h4>
+                <ul className="list-disc list-inside space-y-0.5 text-foreground">
+                  {lesson.sourceContent.connections.map((c, i) => (
+                    <li key={i}>{c}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {lesson.sourceContent.ibExamStyles && lesson.sourceContent.ibExamStyles.length > 0 && (
+              <div>
+                <h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                  IB Exam Styles
+                </h4>
+                <ul className="list-disc list-inside space-y-0.5 text-foreground">
+                  {lesson.sourceContent.ibExamStyles.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {lesson.sourceContent.difficultyProgression && (
+              <div>
+                <h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                  Difficulty Progression
+                </h4>
+                <p className="text-foreground">{lesson.sourceContent.difficultyProgression}</p>
+              </div>
+            )}
+
+            {lesson.sourceContent.teachingNotes && (
+              <div>
+                <h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                  Teaching Notes
+                </h4>
+                <p className="text-foreground">{lesson.sourceContent.teachingNotes}</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <LessonEditor

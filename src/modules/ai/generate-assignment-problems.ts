@@ -43,6 +43,10 @@ export async function generateAssignmentProblems({
   contextParts.push(`## ${lesson.title}`);
   if (lesson.description) contextParts.push(`Description: ${lesson.description}`);
   if (lesson.syllabusRef) contextParts.push(`Syllabus reference: ${lesson.syllabusRef}`);
+  if (lesson.sourceContent) {
+    const scStr = typeof lesson.sourceContent === "string" ? lesson.sourceContent : JSON.stringify(lesson.sourceContent);
+    contextParts.push(`Learning context: ${scStr.slice(0, 1500)}`);
+  }
   if (lesson.content) {
     const contentStr = typeof lesson.content === "string" ? lesson.content : JSON.stringify(lesson.content);
     contextParts.push(`Content: ${contentStr.slice(0, 2000)}`);
