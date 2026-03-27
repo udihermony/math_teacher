@@ -235,7 +235,15 @@ function AIAssistantInner() {
       (m) => ({ role: m.role, content: m.content })
     );
 
-    await streamResponse("/api/ai/teacher", { messages: apiMessages }, content);
+    await streamResponse(
+      "/api/ai/teacher",
+      {
+        messages: apiMessages,
+        topicId: selectedTopicId || undefined,
+        lessonId: selectedLessonId || undefined,
+      },
+      content
+    );
   }
 
   // Generate lesson

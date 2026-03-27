@@ -55,11 +55,15 @@ RULES:
 6. Be concise in chat but thorough in generated content.
 7. When asked to generate content, ALWAYS output ready-to-use JSON — not just descriptions.`;
 
-export function buildTeacherAssistantPrompt(curriculumSummary?: string): string {
+export function buildTeacherAssistantPrompt(curriculumSummary?: string, focusContext?: string): string {
   const parts = [TEACHER_ASSISTANT_PROMPT];
 
   if (curriculumSummary) {
     parts.push(`\nCURRENT CURRICULUM STRUCTURE:\n${curriculumSummary}`);
+  }
+
+  if (focusContext) {
+    parts.push(`\nFOCUS CONTEXT (the teacher has selected a specific topic/lesson — use this detailed context to give precise, aligned responses):\n${focusContext}`);
   }
 
   return parts.join("\n");
