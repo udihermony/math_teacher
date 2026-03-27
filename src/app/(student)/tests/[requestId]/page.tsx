@@ -42,6 +42,7 @@ export default function TestTakingPage({ params }: { params: Promise<{ requestId
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
+  const [timeExpired, setTimeExpired] = useState(false);
 
   // Load test session from localStorage or redirect
   useEffect(() => {
@@ -55,9 +56,15 @@ export default function TestTakingPage({ params }: { params: Promise<{ requestId
       fetch(`/api/student/test-requests/${requestId}/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: "RESUME" }), // will fail if not started
+        body: JSON.stringify({ code: "RESUME" }),
       })
-        .then((r) => {
+        .then(async (r) => {
+          if (r.status === 410) {
+            // Test expired or already completed
+            sessionStorage.removeItem(`test-${requestId}`);
+            router.push("/tests");
+            return null;
+          }
           if (!r.ok) {
             router.push("/tests");
             return null;
@@ -82,20 +89,34 @@ export default function TestTakingPage({ params }: { params: Promise<{ requestId
     const startTime = new Date(session.startedAt).getTime();
     const endTime = startTime + session.durationMinutes * 60 * 1000;
 
+    // Check if already expired on load
+    const initialRemaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+    setTimeLeft(initialRemaining);
+    if (initialRemaining <= 0) {
+      setTimeExpired(true);
+      return;
+    }
+
     const interval = setInterval(() => {
       const remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
       setTimeLeft(remaining);
 
       if (remaining <= 0) {
         clearInterval(interval);
-        // Auto-submit
-        handleSubmit();
+        setTimeExpired(true);
       }
     }, 1000);
 
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
+
+  // Auto-submit when time expires
+  useEffect(() => {
+    if (timeExpired && !submitting && !result && session) {
+      handleSubmit();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeExpired]);
 
   const handleSubmit = useCallback(async () => {
     if (submitting || !session) return;
@@ -247,8 +268,9 @@ export default function TestTakingPage({ params }: { params: Promise<{ requestId
               return (
                 <button
                   key={idx}
-                  onClick={() => setAnswer(problem.id, { selectedIndex: idx })}
-                  className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${
+                  onClick={() => !timeExpired && setAnswer(problem.id, { selectedIndex: idx })}
+                  disabled={timeExpired}
+                  className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors disabled:opacity-50 ${
                     selected
                       ? "border-primary bg-primary/10 font-medium"
                       : "border-border hover:bg-secondary"
@@ -271,9 +293,10 @@ export default function TestTakingPage({ params }: { params: Promise<{ requestId
           <input
             type="text"
             value={(answers[problem.id]?.value as string) ?? ""}
-            onChange={(e) => setAnswer(problem.id, { value: e.target.value })}
+            onChange={(e) => !timeExpired && setAnswer(problem.id, { value: e.target.value })}
+            disabled={timeExpired}
             placeholder="Type your answer..."
-            className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm"
+            className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm disabled:opacity-50"
           />
         )}
 

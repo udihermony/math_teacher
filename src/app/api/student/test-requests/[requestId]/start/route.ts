@@ -26,8 +26,21 @@ export async function POST(
     return Response.json({ error: "Request not found" }, { status: 404 });
   }
 
-  // Already started — allow resume
+  // Already started — allow resume, but check if time expired
   if (testRequest.status === "STARTED") {
+    if (
+      testRequest.startedAt &&
+      testRequest.test.durationMinutes &&
+      new Date() > new Date(testRequest.startedAt.getTime() + testRequest.test.durationMinutes * 60 * 1000)
+    ) {
+      // Time expired — auto-complete with score 0
+      await prisma.testRequest.update({
+        where: { id: requestId },
+        data: { status: "COMPLETED", completedAt: new Date(), score: 0 },
+      });
+      return Response.json({ error: "Time expired", expired: true }, { status: 410 });
+    }
+
     const problemIds = testRequest.test.problemIds as string[];
     const problems = await prisma.problem.findMany({
       where: { id: { in: problemIds } },
@@ -40,6 +53,11 @@ export async function POST(
       startedAt: testRequest.startedAt?.toISOString() ?? new Date().toISOString(),
       problems,
     });
+  }
+
+  // Already completed
+  if (testRequest.status === "COMPLETED") {
+    return Response.json({ error: "Test already completed", expired: true }, { status: 410 });
   }
 
   if (testRequest.status !== "APPROVED") {

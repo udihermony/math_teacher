@@ -31,13 +31,11 @@ export async function POST(
     return Response.json({ error: "Test not in progress" }, { status: 400 });
   }
 
-  // Server-side time enforcement
-  if (testRequest.startedAt && testRequest.test.durationMinutes) {
-    const deadline = new Date(testRequest.startedAt.getTime() + testRequest.test.durationMinutes * 60 * 1000 + 30000); // 30s grace
-    if (new Date() > deadline) {
-      return Response.json({ error: "Time expired" }, { status: 400 });
-    }
-  }
+  // Server-side time enforcement — allow generous grace period for network latency
+  // but flag if way past deadline (5 min grace)
+  const isOvertime = testRequest.startedAt && testRequest.test.durationMinutes
+    ? new Date() > new Date(testRequest.startedAt.getTime() + testRequest.test.durationMinutes * 60 * 1000 + 5 * 60 * 1000)
+    : false;
 
   // Grade each answer
   const problemIds = testRequest.test.problemIds as string[];
@@ -86,5 +84,6 @@ export async function POST(
     score,
     total: problemIds.length,
     results,
+    overtime: isOvertime,
   });
 }
