@@ -19,41 +19,115 @@ export async function generateTestProblems({
 }): Promise<{ problemIds: string[]; recommendedDuration: number }> {
   let topicName = "";
   let phase = "PHASE_0";
-  let lessonContext = "";
   let lessonId: string | null = null;
+
+  // Collect rich context for the AI
+  const lessonDetails: Array<{
+    title: string;
+    description: string | null;
+    content: unknown;
+    syllabusRef: string | null;
+  }> = [];
+  const existingProblems: Array<{ type: string; difficulty: number; question: string }> = [];
+  const skillNames: string[] = [];
 
   if (scope === "LESSON") {
     const lesson = await prisma.lesson.findUnique({
       where: { id: scopeId },
-      include: { topic: { select: { name: true, phase: true } } },
+      include: {
+        topic: { select: { name: true, phase: true, skills: { select: { name: true, description: true } } } },
+        problems: { select: { type: true, difficulty: true, content: true }, take: 10 },
+      },
     });
     if (!lesson) throw new Error("Lesson not found");
     topicName = `${lesson.topic.name} — ${lesson.title}`;
     phase = lesson.topic.phase;
-    lessonContext = lesson.title;
     lessonId = lesson.id;
+    lessonDetails.push({ title: lesson.title, description: lesson.description, content: lesson.content, syllabusRef: lesson.syllabusRef });
+    for (const p of lesson.problems) {
+      const c = p.content as Record<string, unknown>;
+      existingProblems.push({ type: p.type, difficulty: p.difficulty, question: (c.question as string) ?? "" });
+    }
+    for (const s of lesson.topic.skills) skillNames.push(s.name);
   } else if (scope === "TOPIC") {
     const topic = await prisma.topic.findUnique({
       where: { id: scopeId },
-      include: { lessons: { select: { title: true, id: true }, orderBy: { order: "asc" } } },
+      include: {
+        lessons: {
+          select: { id: true, title: true, description: true, content: true, syllabusRef: true, problems: { select: { type: true, difficulty: true, content: true }, take: 5 } },
+          orderBy: { order: "asc" },
+        },
+        skills: { select: { name: true, description: true } },
+      },
     });
     if (!topic) throw new Error("Topic not found");
     topicName = topic.name;
     phase = topic.phase;
-    lessonContext = topic.lessons.map((l) => l.title).join(", ");
     lessonId = topic.lessons[0]?.id ?? null;
+    for (const l of topic.lessons) {
+      lessonDetails.push({ title: l.title, description: l.description, content: l.content, syllabusRef: l.syllabusRef });
+      for (const p of l.problems) {
+        const c = p.content as Record<string, unknown>;
+        existingProblems.push({ type: p.type, difficulty: p.difficulty, question: (c.question as string) ?? "" });
+      }
+    }
+    for (const s of topic.skills) skillNames.push(s.name);
   } else {
     // PHASE scope
     phase = scopeId;
     const topics = await prisma.topic.findMany({
       where: { phase: scopeId as never },
-      include: { lessons: { select: { title: true, id: true }, take: 3, orderBy: { order: "asc" } } },
-      take: 5,
+      include: {
+        lessons: {
+          select: { id: true, title: true, description: true, content: true, syllabusRef: true, problems: { select: { type: true, difficulty: true, content: true }, take: 3 } },
+          orderBy: { order: "asc" },
+        },
+        skills: { select: { name: true, description: true } },
+      },
     });
     topicName = topics.map((t) => t.name).join(", ");
-    lessonContext = topics.flatMap((t) => t.lessons.map((l) => l.title)).join(", ");
     lessonId = topics[0]?.lessons[0]?.id ?? null;
+    for (const t of topics) {
+      for (const l of t.lessons) {
+        lessonDetails.push({ title: l.title, description: l.description, content: l.content, syllabusRef: l.syllabusRef });
+        for (const p of l.problems) {
+          const c = p.content as Record<string, unknown>;
+          existingProblems.push({ type: p.type, difficulty: p.difficulty, question: (c.question as string) ?? "" });
+        }
+      }
+      for (const s of t.skills) skillNames.push(s.name);
+    }
   }
+
+  // Build rich context string
+  const contextParts: string[] = [];
+
+  if (lessonDetails.length > 0) {
+    contextParts.push("=== LESSON MATERIAL ===");
+    for (const l of lessonDetails) {
+      contextParts.push(`\n## ${l.title}`);
+      if (l.description) contextParts.push(`Description: ${l.description}`);
+      if (l.syllabusRef) contextParts.push(`Syllabus reference: ${l.syllabusRef}`);
+      if (l.content) {
+        const contentStr = typeof l.content === "string" ? l.content : JSON.stringify(l.content);
+        // Truncate very large content to stay within token limits
+        contextParts.push(`Content: ${contentStr.slice(0, 2000)}`);
+      }
+    }
+  }
+
+  if (skillNames.length > 0) {
+    contextParts.push(`\n=== SKILLS TO ASSESS ===\n${skillNames.join(", ")}`);
+  }
+
+  if (existingProblems.length > 0) {
+    contextParts.push("\n=== EXISTING PROBLEM EXAMPLES (for style reference, generate NEW problems) ===");
+    for (const p of existingProblems.slice(0, 15)) {
+      contextParts.push(`- [${p.type}, difficulty ${p.difficulty}] ${p.question.slice(0, 200)}`);
+    }
+  }
+
+  const richContext = contextParts.join("\n");
 
   const systemPrompt = buildProblemGeneratorPrompt({
     topic: topicName,
@@ -61,6 +135,7 @@ export async function generateTestProblems({
     count,
     difficultyMin: 3,
     difficultyMax: 8,
+    additionalInstructions: "Use the provided lesson material, skills, and existing problem examples to generate problems that are directly aligned with what was taught. Problems should test the specific concepts, techniques, and skills from the lessons — not generic math. Do NOT duplicate existing problems.",
   });
 
   const response = await askClaude({
@@ -69,7 +144,9 @@ export async function generateTestProblems({
     messages: [
       {
         role: "user",
-        content: `Generate ${count} test problems covering: ${topicName}. Lessons: ${lessonContext}.
+        content: `Generate ${count} test problems covering: ${topicName}.
+
+${richContext}
 
 IMPORTANT: After the JSON array of problems, also output a single line:
 RECOMMENDED_DURATION_MINUTES: <number>
