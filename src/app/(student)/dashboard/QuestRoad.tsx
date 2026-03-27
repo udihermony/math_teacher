@@ -250,9 +250,7 @@ function PhaseSection({
 }) {
   const colors = PHASE_COLORS[phase.phase] || PHASE_COLORS.PHASE_0;
   const isActive = phase.status === "in_progress" || phase.status === "available";
-  const [expanded, setExpanded] = useState(
-    phase.status === "in_progress" || phase.status === "available"
-  );
+  const [expanded, setExpanded] = useState(false);
 
   const completedTopics = phase.topics.filter((t) => t.status === "completed").length;
   const progressPct = phase.topics.length > 0 ? pct(completedTopics, phase.topics.length) : 0;
