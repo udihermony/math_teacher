@@ -10,6 +10,7 @@ export interface PendingAssignment {
   totalProblems: number;
   attempted: number;
   correct: number;
+  passingGrade: number;
   dueDate: string | null;
   className: string;
   assignedProblemIds: string[];
@@ -135,8 +136,10 @@ export default async function StudentDashboard() {
           }
         }
 
+        const effectivePassingGrade = a.passingGrade ?? assignedIds.length;
+
         totalLessons++;
-        if (correct >= assignedIds.length) {
+        if (correct >= effectivePassingGrade) {
           completedLessons++;
         } else {
           pendingAssignments.push({
@@ -147,6 +150,7 @@ export default async function StudentDashboard() {
             totalProblems: assignedIds.length,
             attempted,
             correct,
+            passingGrade: effectivePassingGrade,
             dueDate: a.dueDate?.toISOString() ?? null,
             className: membership.class.name,
             assignedProblemIds: assignedIds,

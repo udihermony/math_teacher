@@ -41,7 +41,7 @@ function SidebarShell({
   const pathname = usePathname();
 
   return (
-    <aside className="flex w-64 flex-col border-r border-border bg-card" role="navigation" aria-label="Main navigation">
+    <aside className="sticky top-0 flex h-screen w-64 flex-col border-r border-border bg-card overflow-y-auto" role="navigation" aria-label="Main navigation">
       <div className="border-b border-border p-4">
         <Link href="/" className="text-lg font-bold text-primary">
           {title}

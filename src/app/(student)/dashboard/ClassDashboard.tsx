@@ -109,7 +109,7 @@ export function ClassDashboard({
             {pendingAssignments.map((a) => (
               <Link
                 key={a.id}
-                href={`/practice?ids=${a.assignedProblemIds.join(",")}`}
+                href={`/practice?ids=${a.assignedProblemIds.join(",")}&passingGrade=${a.passingGrade}`}
                 className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 transition-colors hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-950/30 dark:hover:bg-amber-950/50"
               >
                 <BookOpen size={16} className="shrink-0 text-amber-600" />

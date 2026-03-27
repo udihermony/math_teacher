@@ -591,7 +591,7 @@ function LessonNode({
           )}
           {lesson.hasQuiz && (
             <Link
-              href={`/practice?ids=${lesson.quizProblemIds.join(",")}`}
+              href={`/practice?ids=${lesson.quizProblemIds.join(",")}&passingGrade=${lesson.passingGrade}`}
               className="flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground hover:opacity-90"
             >
               <ClipboardList size={11} />

@@ -453,7 +453,7 @@ function PhaseSection({
   onGenerateBulkQuiz: (key: string, lessons: TeacherLesson[], countPerLesson: number) => void;
   onAssign: (lesson: TeacherLesson) => void;
 }) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [showQuizForm, setShowQuizForm] = useState(false);
   const [quizCount, setQuizCount] = useState(5);
   const color = PHASE_COLORS[phase.phase] || PHASE_COLORS.PHASE_0;

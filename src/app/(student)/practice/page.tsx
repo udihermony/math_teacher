@@ -51,6 +51,8 @@ function PracticeInner() {
   const topicId = searchParams.get("topicId");
   const phase = searchParams.get("phase");
   const assignmentIds = searchParams.get("ids");
+  const passingGradeParam = searchParams.get("passingGrade");
+  const passingGrade = passingGradeParam ? parseInt(passingGradeParam) : null;
 
   const hasPracticeParams = !!(lessonId || topicId || phase || assignmentIds);
   const isQuizMode = !!assignmentIds;
@@ -495,9 +497,9 @@ function PracticeInner() {
                 <p className="mt-1 text-sm text-muted-foreground">
                   {score.correct === score.total
                     ? "Perfect score! Amazing work!"
-                    : score.correct >= score.total * 0.7
-                    ? "Good job! You passed the quiz."
-                    : "Keep practicing and try again!"}
+                    : score.correct >= (passingGrade ?? score.total)
+                    ? `You passed! (${passingGrade ?? score.total} needed)`
+                    : `You need ${(passingGrade ?? score.total) - score.correct} more correct to pass.`}
                 </p>
                 <div className="mt-4 flex justify-center gap-3">
                   <button
