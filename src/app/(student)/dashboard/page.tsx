@@ -34,38 +34,67 @@ export default async function StudentDashboard() {
   if (userId) {
     const profile = await prisma.studentProfile.findUnique({
       where: { userId },
-      select: { coins: true, xp: true, level: true, streak: true },
+      select: { coins: true, xp: true, level: true, streak: true, activeClassId: true },
     });
     coins = profile?.coins ?? 0;
     xp = profile?.xp ?? 0;
     level = profile?.level ?? 1;
     streak = profile?.streak ?? 0;
 
-    // Check class membership
-    const membership = await prisma.classMembership.findFirst({
-      where: { userId, role: "STUDENT" },
-      include: {
-        class: {
+    // Find membership for active class, or fall back to first class
+    let membership = profile?.activeClassId
+      ? await prisma.classMembership.findFirst({
+          where: { userId, classId: profile.activeClassId, role: "STUDENT" },
           include: {
-            members: {
-              where: { role: "TEACHER" },
-              include: { user: { select: { name: true } } },
-            },
-            assignments: {
+            class: {
               include: {
-                lesson: {
+                members: {
+                  where: { role: "TEACHER" },
+                  include: { user: { select: { name: true } } },
+                },
+                assignments: {
                   include: {
-                    topic: { select: { name: true } },
-                    problems: { where: { purpose: "PRACTICE" }, select: { id: true } },
+                    lesson: {
+                      include: {
+                        topic: { select: { name: true } },
+                        problems: { where: { purpose: "PRACTICE" }, select: { id: true } },
+                      },
+                    },
                   },
+                  orderBy: { createdAt: "desc" as const },
                 },
               },
-              orderBy: { createdAt: "desc" },
+            },
+          },
+        })
+      : null;
+
+    if (!membership) {
+      membership = await prisma.classMembership.findFirst({
+        where: { userId, role: "STUDENT" },
+        include: {
+          class: {
+            include: {
+              members: {
+                where: { role: "TEACHER" },
+                include: { user: { select: { name: true } } },
+              },
+              assignments: {
+                include: {
+                  lesson: {
+                    include: {
+                      topic: { select: { name: true } },
+                      problems: { where: { purpose: "PRACTICE" }, select: { id: true } },
+                    },
+                  },
+                },
+                orderBy: { createdAt: "desc" as const },
+              },
             },
           },
         },
-      },
-    });
+      });
+    }
 
     if (membership) {
       hasClass = true;

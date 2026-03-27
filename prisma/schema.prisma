@@ -102,6 +102,8 @@ model StudentProfile {
   streak         Int       @default(0)
   lastActiveDate DateTime?
   preferences    Json?
+  activeClassId  String?
+  activeClass    Class?    @relation(fields: [activeClassId], references: [id])
 }
 
 model TeacherProfile {
@@ -231,14 +233,15 @@ model UserBadge {
 // ── Classes ────────────────────────────────────────────
 
 model Class {
-  id          String            @id @default(cuid())
-  name        String
-  code        String            @unique
-  phase       Phase             @default(PHASE_0)
-  endPhase    Phase             @default(PHASE_10)
-  members     ClassMembership[]
-  assignments ClassAssignment[]
-  createdAt   DateTime          @default(now())
+  id              String            @id @default(cuid())
+  name            String
+  code            String            @unique
+  phase           Phase             @default(PHASE_0)
+  endPhase        Phase             @default(PHASE_10)
+  members         ClassMembership[]
+  assignments     ClassAssignment[]
+  activeStudents  StudentProfile[]
+  createdAt       DateTime          @default(now())
 }
 
 model ClassMembership {

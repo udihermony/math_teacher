@@ -19,6 +19,7 @@ import {
   GraduationCap,
   FileText,
 } from "lucide-react";
+import { ClassSwitcher } from "./ClassSwitcher";
 
 interface SidebarProps {
   user: { name?: string | null; email?: string | null };
@@ -34,7 +35,8 @@ function SidebarShell({
   user,
   items,
   title,
-}: SidebarProps & { items: NavItem[]; title: string }) {
+  children,
+}: SidebarProps & { items: NavItem[]; title: string; children?: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
@@ -44,6 +46,7 @@ function SidebarShell({
           {title}
         </Link>
       </div>
+      {children}
 
       <nav className="flex-1 space-y-1 p-3">
         {items.map((item) => {
@@ -94,7 +97,11 @@ export function StudentSidebar({ user }: SidebarProps) {
     { href: "/settings", label: "Settings", icon: <Settings size={18} /> },
   ];
 
-  return <SidebarShell user={user} items={items} title="MathQuest" />;
+  return (
+    <SidebarShell user={user} items={items} title="MathQuest">
+      <ClassSwitcher />
+    </SidebarShell>
+  );
 }
 
 export function TeacherSidebar({ user }: SidebarProps) {

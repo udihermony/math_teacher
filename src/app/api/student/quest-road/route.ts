@@ -14,11 +14,25 @@ export async function GET() {
 
   const userId = session.user.id;
 
-  // Check class membership
-  const membership = await prisma.classMembership.findFirst({
-    where: { userId, role: "STUDENT" },
-    include: { class: true },
+  // Determine active class
+  const profile0 = await prisma.studentProfile.findUnique({
+    where: { userId },
+    select: { activeClassId: true },
   });
+
+  let membership = profile0?.activeClassId
+    ? await prisma.classMembership.findFirst({
+        where: { userId, classId: profile0.activeClassId, role: "STUDENT" },
+        include: { class: true },
+      })
+    : null;
+
+  if (!membership) {
+    membership = await prisma.classMembership.findFirst({
+      where: { userId, role: "STUDENT" },
+      include: { class: true },
+    });
+  }
 
   if (!membership) {
     return Response.json({ hasClass: false });
