@@ -73,6 +73,8 @@ export default function TestsPage() {
         body: JSON.stringify({ code: code.trim() }),
       });
       if (res.ok) {
+        const data = await res.json();
+        sessionStorage.setItem(`test-${requestId}`, JSON.stringify(data));
         router.push(`/tests/${requestId}`);
       } else {
         const data = await res.json();

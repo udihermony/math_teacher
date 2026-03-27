@@ -26,6 +26,22 @@ export async function POST(
     return Response.json({ error: "Request not found" }, { status: 404 });
   }
 
+  // Already started — allow resume
+  if (testRequest.status === "STARTED") {
+    const problemIds = testRequest.test.problemIds as string[];
+    const problems = await prisma.problem.findMany({
+      where: { id: { in: problemIds } },
+      select: { id: true, type: true, difficulty: true, content: true },
+    });
+
+    return Response.json({
+      title: testRequest.test.title,
+      durationMinutes: testRequest.test.durationMinutes,
+      startedAt: testRequest.startedAt?.toISOString() ?? new Date().toISOString(),
+      problems,
+    });
+  }
+
   if (testRequest.status !== "APPROVED") {
     return Response.json({ error: "Request not approved yet" }, { status: 400 });
   }
