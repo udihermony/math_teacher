@@ -241,49 +241,13 @@ export async function GET() {
     };
   });
 
-  // Apply sequential locking: lock phases/topics/lessons that aren't reachable yet
-  type LessonNode = { id: string; title: string; order: number; status: NodeStatus; problemCount: number; completedProblems: number; hasQuiz: boolean; quizCompleted: boolean; quizCorrect: number; quizTotal: number; passingGrade: number; quizProblemIds: string[]; coins: { earned: number; total: number } };
-  type TopicNode = { id: string; name: string; order: number; status: NodeStatus; lessons: LessonNode[]; coins: { earned: number; total: number } };
-  type PhaseNode = { phase: string; status: NodeStatus; topics: TopicNode[]; coins: { earned: number; total: number } };
-  const mutablePhases = phases as PhaseNode[];
-
-  for (let pi = 0; pi < mutablePhases.length; pi++) {
-    const p = mutablePhases[pi];
-    if (pi > 0 && mutablePhases[pi - 1].status !== "completed") {
-      p.status = "locked";
-      for (const t of p.topics) {
-        t.status = "locked";
-        for (const l of t.lessons) l.status = "locked";
-      }
-      continue;
-    }
-    for (let ti = 0; ti < p.topics.length; ti++) {
-      const t = p.topics[ti];
-      if (ti > 0 && p.topics[ti - 1].status !== "completed") {
-        if (t.status !== "completed" && t.status !== "in_progress") {
-          t.status = "locked";
-          for (const l of t.lessons) l.status = "locked";
-          continue;
-        }
-      }
-      for (let li = 0; li < t.lessons.length; li++) {
-        const l = t.lessons[li];
-        if (li > 0 && t.lessons[li - 1].status !== "completed") {
-          if (l.status !== "completed" && l.status !== "in_progress") {
-            l.status = "locked";
-          }
-        }
-      }
-    }
-  }
-
   // Overall coins
-  const totalCoinsEarned = mutablePhases.reduce((s, p) => s + p.coins.earned, 0);
-  const totalCoinsPossible = mutablePhases.reduce((s, p) => s + p.coins.total, 0);
+  const totalCoinsEarned = phases.reduce((s, p) => s + p.coins.earned, 0);
+  const totalCoinsPossible = phases.reduce((s, p) => s + p.coins.total, 0);
 
   // Final test: all phases completed
   const FINAL_TEST_BONUS = 50;
-  const allPhasesCompleted = mutablePhases.every((p) => p.status === "completed");
+  const allPhasesCompleted = phases.every((p) => p.status === "completed");
   const finalTestEarned = assignmentBonusEarned.has("FINAL_TEST") ? FINAL_TEST_BONUS : 0;
 
   return Response.json({

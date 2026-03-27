@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
 import { StudentAlerts } from "./StudentAlerts";
 import { ContentStatsCards } from "./ContentStatsCards";
+import { PendingTestRequests } from "./PendingTestRequests";
 
 interface StudentData {
   userId: string;
@@ -130,6 +131,9 @@ export function DashboardClient({ userName }: Props) {
         <SummaryItem icon={<Activity size={14} />} label="Active This Week" value={totalActive} />
         <SummaryItem icon={<ClipboardList size={14} />} label="Pending Assignments" value={totalPending} />
       </div>
+
+      {/* Pending test requests */}
+      <PendingTestRequests />
 
       {/* Class tabs */}
       {classes.length === 0 ? (

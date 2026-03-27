@@ -124,12 +124,12 @@ export function TeacherQuestRoad({ classId, students, onQuizGenerated }: Props) 
     setGenerating(null);
   }
 
-  async function assignLesson(lessonId: string, questionCount: number, passingGrade?: number, studentIds?: string[]) {
+  async function assignLesson(lessonId: string, questionCount: number, passingGrade?: number, studentIds?: string[], practicePayableCount?: number) {
     try {
       const res = await fetch(`/api/classes/${classId}/assignments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lessonId, questionCount, passingGrade, studentIds }),
+        body: JSON.stringify({ lessonId, questionCount, passingGrade, studentIds, practicePayableCount }),
       });
       if (res.ok) {
         setPhases((prev) =>
@@ -239,12 +239,13 @@ export function TeacherQuestRoad({ classId, students, onQuizGenerated }: Props) 
         <AssignModal
           lesson={assigningLesson}
           students={students}
-          onAssign={(questionCount, passingGrade, studentIds) => {
+          onAssign={(questionCount, passingGrade, studentIds, practicePayableCount) => {
             assignLesson(
               assigningLesson.id,
               questionCount,
               passingGrade,
-              studentIds
+              studentIds,
+              practicePayableCount
             );
             setAssigningLesson(null);
           }}
@@ -265,13 +266,14 @@ function AssignModal({
 }: {
   lesson: TeacherLesson;
   students: StudentInfo[];
-  onAssign: (questionCount: number, passingGrade?: number, studentIds?: string[]) => void;
+  onAssign: (questionCount: number, passingGrade?: number, studentIds?: string[], practicePayableCount?: number) => void;
   onClose: () => void;
 }) {
   const [mode, setMode] = useState<"all" | "select">("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [questionCount, setQuestionCount] = useState(lesson.assignmentCount || 5);
   const [passingGrade, setPassingGrade] = useState(lesson.assignmentCount || 5);
+  const [practicePayableCount, setPracticePayableCount] = useState(lesson.practiceCount || 10);
 
   // Keep passingGrade in sync when questionCount changes
   const effectiveQC = questionCount;
@@ -332,6 +334,22 @@ function AssignModal({
               className="w-16 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
             />
             <span className="text-sm text-muted-foreground">/ {effectiveQC} correct to pass</span>
+          </div>
+        </div>
+
+        {/* Practice payable count */}
+        <div className="mt-3">
+          <label className="mb-1 block text-xs font-medium">Practice questions (earn coins)</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={practicePayableCount}
+              onChange={(e) => setPracticePayableCount(Math.max(0, parseInt(e.target.value) || 0))}
+              className="w-16 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+            />
+            <span className="text-sm text-muted-foreground">practice Qs give coins</span>
           </div>
         </div>
 
@@ -397,7 +415,8 @@ function AssignModal({
             onClick={() => onAssign(
               effectiveQC,
               clampedGrade,
-              mode === "select" ? Array.from(selected) : undefined
+              mode === "select" ? Array.from(selected) : undefined,
+              practicePayableCount
             )}
             disabled={mode === "select" && selected.size === 0}
             className="flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"

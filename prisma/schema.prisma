@@ -62,6 +62,26 @@ enum ChallengeStatus {
   CANCELLED
 }
 
+enum TestScope {
+  LESSON
+  TOPIC
+  PHASE
+}
+
+enum TestStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum TestRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  STARTED
+  COMPLETED
+}
+
 // ── Users ──────────────────────────────────────────────
 
 model User {
@@ -89,6 +109,7 @@ model User {
   challengeSubmissions   ChallengeSubmission[]
   coinTransactions       CoinTransaction[]
   conversations          Conversation[]
+  testRequests           TestRequest[]
 }
 
 model StudentProfile {
@@ -240,6 +261,7 @@ model Class {
   endPhase        Phase             @default(PHASE_10)
   members         ClassMembership[]
   assignments     ClassAssignment[]
+  tests           Test[]
   activeStudents  StudentProfile[]
   createdAt       DateTime          @default(now())
 }
@@ -261,15 +283,57 @@ model ClassAssignment {
   class      Class     @relation(fields: [classId], references: [id])
   lessonId   String
   lesson     Lesson    @relation(fields: [lessonId], references: [id])
-  problemIds    Json?     // Array of selected problem IDs; null = all problems
-  questionCount Int?      // How many questions teacher requested
-  passingGrade  Int?      // Minimum correct answers to pass; null = all questions
-  studentIds    Json?     // Array of student user IDs; null = all students in class
+  problemIds         Json?     // Array of selected problem IDs; null = all problems
+  questionCount      Int?      // How many questions teacher requested
+  passingGrade       Int?      // Minimum correct answers to pass; null = all questions
+  practicePayableCount Int?    // How many practice Qs earn coins (= total practice count)
+  studentIds         Json?     // Array of student user IDs; null = all students in class
   dueDate       DateTime?
   note       String?
   createdAt  DateTime  @default(now())
 
   @@unique([classId, lessonId])
+}
+
+// ── Tests ─────────────────────────────────────────────
+
+model Test {
+  id              String     @id @default(cuid())
+  classId         String
+  class           Class      @relation(fields: [classId], references: [id])
+  scope           TestScope
+  scopeId         String     // lessonId, topicId, or phase enum string
+  title           String
+  questionCount   Int
+  problemIds      Json       // string[] of generated problem IDs
+  durationMinutes Int?       // teacher-set time limit (AI recommends)
+  aiGenerated     Boolean    @default(false)
+  status          TestStatus @default(ACTIVE)
+  createdById     String
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  requests        TestRequest[]
+
+  @@index([classId])
+}
+
+model TestRequest {
+  id           String            @id @default(cuid())
+  testId       String
+  test         Test              @relation(fields: [testId], references: [id])
+  studentId    String
+  student      User              @relation(fields: [studentId], references: [id])
+  status       TestRequestStatus @default(PENDING)
+  approvalCode String?           @unique
+  codeUsedAt   DateTime?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  score        Int?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@unique([testId, studentId])
+  @@index([studentId, status])
 }
 
 // ── Social ────────────────────────────────────────────

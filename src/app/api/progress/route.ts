@@ -147,7 +147,22 @@ export async function POST(request: NextRequest) {
 
     if (!alreadySolvedThis && problem.lesson?.id) {
       const phase = problem.lesson.topic?.phase ?? "PHASE_0";
-      const answerCoin = await awardAnswerCoin(session.user.id, problem.lesson.id, problem.difficulty, phase);
+
+      // Look up practicePayableCount from student's active class assignment
+      let payableCount: number | null = null;
+      const studentProfile = await prisma.studentProfile.findUnique({
+        where: { userId: session.user.id },
+        select: { activeClassId: true },
+      });
+      if (studentProfile?.activeClassId) {
+        const classAssignment = await prisma.classAssignment.findUnique({
+          where: { classId_lessonId: { classId: studentProfile.activeClassId, lessonId: problem.lesson.id } },
+          select: { practicePayableCount: true },
+        });
+        payableCount = classAssignment?.practicePayableCount ?? null;
+      }
+
+      const answerCoin = await awardAnswerCoin(session.user.id, problem.lesson.id, problem.difficulty, phase, payableCount);
       coinsEarned += answerCoin;
 
       const assignmentResult = await checkAssignmentCompletion(session.user.id, problemId, phase);

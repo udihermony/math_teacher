@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
-  Lock,
   Check,
   ChevronDown,
   ClipboardList,
@@ -26,7 +25,7 @@ interface QuestLesson {
   id: string;
   title: string;
   order: number;
-  status: "locked" | "available" | "in_progress" | "completed";
+  status: "available" | "in_progress" | "completed";
   problemCount: number;
   completedProblems: number;
   hasQuiz: boolean;
@@ -42,14 +41,14 @@ interface QuestTopic {
   id: string;
   name: string;
   order: number;
-  status: "locked" | "available" | "in_progress" | "completed";
+  status: "available" | "in_progress" | "completed";
   lessons: QuestLesson[];
   coins: { earned: number; total: number };
 }
 
 interface QuestPhase {
   phase: string;
-  status: "locked" | "available" | "in_progress" | "completed";
+  status: "available" | "in_progress" | "completed";
   topics: QuestTopic[];
   coins: { earned: number; total: number };
 }
@@ -268,16 +267,12 @@ function PhaseSection({
       >
         <div
           className={`relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white shadow-lg transition-transform ${
-            phase.status === "locked"
-              ? "bg-muted text-muted-foreground shadow-none"
-              : phase.status === "completed"
+            phase.status === "completed"
               ? "bg-green-500 shadow-green-500/30"
               : `${colors.bg} shadow-lg`
           }`}
         >
-          {phase.status === "locked" ? (
-            <Lock size={20} />
-          ) : phase.status === "completed" ? (
+          {phase.status === "completed" ? (
             <Check size={24} strokeWidth={3} />
           ) : (
             <span className="text-lg font-bold">
@@ -286,23 +281,20 @@ function PhaseSection({
           )}
         </div>
         <div className="flex-1">
-          <p className={`text-lg font-bold ${phase.status === "locked" ? "text-muted-foreground" : ""}`}>
+          <p className="text-lg font-bold">
             {PHASE_LABELS[phase.phase]}
           </p>
           <p className="text-xs text-muted-foreground">
-            {completedTopics}/{phase.topics.length} topics passed
-            {phase.status !== "locked" && ` · ${progressPct}%`}
+            {completedTopics}/{phase.topics.length} topics passed · {progressPct}%
             {phase.status === "completed" && " · Level Passed!"}
           </p>
         </div>
 
         {/* Phase coins */}
-        {phase.status !== "locked" && (
-          <span className={`flex items-center gap-1 text-xs font-medium ${phase.coins.earned > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
-            <Coins size={12} />
-            {phase.coins.earned}/{phase.coins.total}
-          </span>
-        )}
+        <span className={`flex items-center gap-1 text-xs font-medium ${phase.coins.earned > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
+          <Coins size={12} />
+          {phase.coins.earned}/{phase.coins.total}
+        </span>
 
         <ChevronDown
           size={18}
@@ -311,9 +303,7 @@ function PhaseSection({
       </button>
 
       {/* Phase action buttons */}
-      {phase.status !== "locked" && (
-        <PhaseActions phase={phase} />
-      )}
+      <PhaseActions phase={phase} />
       </div>
 
       {/* Topics within this phase */}
@@ -336,11 +326,11 @@ function PhaseSection({
 
 function PhaseActions({ phase }: { phase: QuestPhase }) {
   const hasPractice = phase.topics.some((t) =>
-    t.lessons.some((l) => l.problemCount > 0 && l.status !== "locked")
+    t.lessons.some((l) => l.problemCount > 0)
   );
   const allQuizIds = phase.topics
     .flatMap((t) => t.lessons)
-    .filter((l) => l.hasQuiz && l.status !== "locked")
+    .filter((l) => l.hasQuiz)
     .flatMap((l) => l.quizProblemIds);
 
   if (!hasPractice && allQuizIds.length === 0) return null;
@@ -402,16 +392,12 @@ function TopicSection({
           <div className="absolute left-[18px] -top-4 h-4 w-0.5 bg-border" />
           <div
             className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold shadow-md transition-transform ${
-              topic.status === "locked"
-                ? "bg-muted text-muted-foreground shadow-none"
-                : topic.status === "completed"
+              topic.status === "completed"
                 ? "bg-green-500 text-white shadow-green-500/20"
                 : `${colors.bg} text-white shadow-lg hover:scale-105`
             } ${topic.status === "in_progress" ? "ring-2 ring-offset-2 " + colors.ring : ""}`}
           >
-            {topic.status === "locked" ? (
-              <Lock size={14} />
-            ) : topic.status === "completed" ? (
+            {topic.status === "completed" ? (
               <Check size={18} strokeWidth={3} />
             ) : (
               <BookOpen size={16} />
@@ -421,7 +407,7 @@ function TopicSection({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className={`text-sm font-semibold truncate ${topic.status === "locked" ? "text-muted-foreground" : ""}`}>
+            <p className="text-sm font-semibold truncate">
               {topic.name}
             </p>
             {topic.status === "completed" && (
@@ -434,15 +420,13 @@ function TopicSection({
           <span className="text-xs text-muted-foreground">
             {completedLessons}/{topic.lessons.length} passed &middot; {progressPct}%
           </span>
-          {topic.status !== "locked" && (
-            <span className={`ml-1 inline-flex items-center gap-0.5 text-xs ${topic.coins.earned > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
-              &middot; <Coins size={10} /> {topic.coins.earned}/{topic.coins.total}
-            </span>
-          )}
+          <span className={`ml-1 inline-flex items-center gap-0.5 text-xs ${topic.coins.earned > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
+            &middot; <Coins size={10} /> {topic.coins.earned}/{topic.coins.total}
+          </span>
         </div>
 
         {/* Progress bar */}
-        {topic.status !== "locked" && topic.lessons.length > 0 && (
+        {topic.lessons.length > 0 && (
           <div className="w-16">
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
               <div
@@ -455,9 +439,7 @@ function TopicSection({
       </button>
 
       {/* Topic action buttons */}
-      {topic.status !== "locked" && (
-        <TopicActions topic={topic} />
-      )}
+      <TopicActions topic={topic} />
       </div>
 
       {/* Lessons */}
@@ -478,9 +460,9 @@ function TopicSection({
 }
 
 function TopicActions({ topic }: { topic: QuestTopic }) {
-  const hasPractice = topic.lessons.some((l) => l.problemCount > 0 && l.status !== "locked");
+  const hasPractice = topic.lessons.some((l) => l.problemCount > 0);
   const allQuizIds = topic.lessons
-    .filter((l) => l.hasQuiz && l.status !== "locked")
+    .filter((l) => l.hasQuiz)
     .flatMap((l) => l.quizProblemIds);
 
   if (!hasPractice && allQuizIds.length === 0) return null;
@@ -525,9 +507,7 @@ function LessonNode({
   const content = (
     <div
       className={`rounded-lg px-3 py-2 transition-colors ${
-        lesson.status === "locked"
-          ? "opacity-50"
-          : lesson.status === "completed"
+        lesson.status === "completed"
           ? "bg-green-50 dark:bg-green-950/20"
           : "hover:bg-secondary"
       }`}
@@ -536,18 +516,14 @@ function LessonNode({
         {/* Small circle */}
         <div
           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs ${
-            lesson.status === "locked"
-              ? "bg-muted text-muted-foreground"
-              : lesson.status === "completed"
+            lesson.status === "completed"
               ? "bg-green-500 text-white"
               : lesson.status === "in_progress"
               ? "border-2 border-primary bg-card text-primary"
               : "border-2 border-border bg-card text-muted-foreground"
           }`}
         >
-          {lesson.status === "locked" ? (
-            <Lock size={12} />
-          ) : lesson.status === "completed" ? (
+          {lesson.status === "completed" ? (
             <Check size={14} strokeWidth={3} />
           ) : (
             <span className="text-xs font-bold">{lesson.order}</span>
@@ -555,7 +531,7 @@ function LessonNode({
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className={`text-sm truncate ${lesson.status === "locked" ? "text-muted-foreground" : lesson.status === "completed" ? "text-muted-foreground" : "text-foreground"}`}>
+          <p className={`text-sm truncate ${lesson.status === "completed" ? "text-muted-foreground" : "text-foreground"}`}>
             {lesson.title}
           </p>
         </div>
@@ -569,7 +545,7 @@ function LessonNode({
         )}
 
         {/* Practice progress % */}
-        {lesson.status !== "locked" && lesson.problemCount > 0 && (
+        {lesson.problemCount > 0 && (
           <span className={`text-xs font-medium ${lesson.status === "completed" ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}>
             {progressPct}%
           </span>
@@ -603,8 +579,7 @@ function LessonNode({
       </div>
 
       {/* Action buttons */}
-      {lesson.status !== "locked" && (
-        <div className="ml-10 mt-1.5 flex items-center gap-2">
+      <div className="ml-10 mt-1.5 flex items-center gap-2">
           {lesson.problemCount > 0 && (
             <Link
               href={`/practice?lessonId=${lesson.id}`}
@@ -624,7 +599,6 @@ function LessonNode({
             </Link>
           )}
         </div>
-      )}
     </div>
   );
 

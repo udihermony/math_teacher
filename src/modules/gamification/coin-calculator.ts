@@ -51,9 +51,10 @@ export async function awardAnswerCoin(
   userId: string,
   lessonId: string,
   difficulty: number,
-  phase: string
+  phase: string,
+  payableCount?: number | null
 ): Promise<number> {
-  const cap = maxPracticeCoins(phase);
+  const cap = payableCount != null ? payableCount : maxPracticeCoins(phase);
 
   // Sum coins already earned for this lesson
   const agg = await prisma.coinTransaction.aggregate({

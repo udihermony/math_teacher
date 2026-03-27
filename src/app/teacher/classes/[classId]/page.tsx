@@ -3,6 +3,7 @@
 import { useState, useEffect, use, useCallback } from "react";
 import { ArrowLeft, Copy, Check, UserMinus, Plus, Trash2, Sparkles, Loader2, BookOpen, ExternalLink, Map, Eye } from "lucide-react";
 import { TeacherQuestRoad } from "./TeacherQuestRoad";
+import { TestManagement } from "./TestManagement";
 import { StudentProgressView } from "./StudentProgressView";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
@@ -534,6 +535,11 @@ export default function ClassDetailPage({ params }: { params: Promise<{ classId:
             })}
           </div>
         )}
+      </div>
+
+      {/* Test Management */}
+      <div className="mb-6">
+        <TestManagement classId={classId} />
       </div>
 
       {/* AI Performance Summary */}

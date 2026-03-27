@@ -9,6 +9,7 @@ const assignSchema = z.object({
   lessonId: z.string().min(1),
   questionCount: z.number().int().min(1).max(100),
   passingGrade: z.number().int().min(1).optional(), // min correct answers to pass; null = all
+  practicePayableCount: z.number().int().min(0).optional(), // how many practice Qs earn coins
   studentIds: z.array(z.string()).optional(), // null/undefined = all students
   dueDate: z.string().datetime().optional(),
   note: z.string().max(500).optional(),
@@ -112,6 +113,7 @@ export async function POST(
       problemIds: problemIds as never,
       questionCount,
       passingGrade: parsed.data.passingGrade ?? null,
+      practicePayableCount: parsed.data.practicePayableCount ?? null,
       studentIds: studentIdsValue,
       dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
       note: parsed.data.note || null,
@@ -120,6 +122,7 @@ export async function POST(
       problemIds: problemIds as never,
       questionCount,
       passingGrade: parsed.data.passingGrade ?? null,
+      practicePayableCount: parsed.data.practicePayableCount ?? null,
       studentIds: studentIdsValue,
       dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
       note: parsed.data.note || null,
