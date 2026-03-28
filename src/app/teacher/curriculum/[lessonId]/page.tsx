@@ -3,8 +3,9 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus, Search, Loader2, BookOpen, AlertTriangle, Link2, Zap, PlayCircle } from "lucide-react";
+import { ArrowLeft, Plus, Search, Loader2, BookOpen, AlertTriangle, Link2, Zap, PlayCircle, Eye } from "lucide-react";
 import { TutorialChatModal } from "@/modules/tutorial/TutorialChatModal";
+import { TutorialRenderer } from "@/modules/tutorial/TutorialRenderer";
 import type { TutorialData } from "@/modules/tutorial/types";
 import { LessonEditor } from "@/modules/teacher/components/LessonEditor";
 import { Spinner } from "@/components/ui/Spinner";
@@ -68,6 +69,7 @@ export default function EditLessonPage({
   } | null>(null);
   const [researchError, setResearchError] = useState<string | null>(null);
   const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [tutorialPreview, setTutorialPreview] = useState(false);
 
   useEffect(() => {
     fetch(`/api/teacher/lessons/${lessonId}`)
@@ -313,15 +315,48 @@ export default function EditLessonPage({
                 : "Generate an interactive tutorial with text, LaTeX, and p5.js animations"}
             </p>
           </div>
-          <button
-            onClick={() => setTutorialOpen(true)}
-            className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            <PlayCircle size={14} />
-            {lesson.tutorial ? "Edit Tutorial" : "Generate Tutorial"}
-          </button>
+          <div className="flex items-center gap-2">
+            {lesson.tutorial && (
+              <button
+                onClick={() => setTutorialPreview(true)}
+                className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-secondary"
+              >
+                <Eye size={14} />
+                Preview
+              </button>
+            )}
+            <button
+              onClick={() => setTutorialOpen(true)}
+              className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              <PlayCircle size={14} />
+              {lesson.tutorial ? "Edit Tutorial" : "Generate Tutorial"}
+            </button>
+          </div>
         </div>
       </div>
+
+      {tutorialPreview && lesson.tutorial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setTutorialPreview(false)}>
+          <div
+            className="flex h-[85vh] w-[90vw] max-w-3xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-border px-5 py-3">
+              <h2 className="text-lg font-semibold">{lesson.title} — Tutorial Preview</h2>
+              <button
+                onClick={() => setTutorialPreview(false)}
+                className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <TutorialRenderer blocks={lesson.tutorial.blocks} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {tutorialOpen && (
         <TutorialChatModal
