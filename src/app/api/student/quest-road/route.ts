@@ -52,7 +52,11 @@ export async function GET() {
     },
     include: {
       lessons: {
-        include: {
+        select: {
+          id: true,
+          title: true,
+          order: true,
+          tutorial: true,
           problems: {
             where: { purpose: "PRACTICE" },
             select: { id: true },
@@ -190,6 +194,7 @@ export async function GET() {
           passingGrade: assignment?.passingGrade ?? 0,
           quizProblemIds: assignment?.problemIds ?? [],
           coins: { earned: earnedCoins, total: totalPossibleCoins },
+          hasTutorial: !!lesson.tutorial,
         };
       });
 

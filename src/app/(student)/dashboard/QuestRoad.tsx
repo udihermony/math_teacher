@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, createContext, useContext } from "react";
 import Link from "next/link";
 import {
   Check,
@@ -18,6 +18,7 @@ import {
   Play,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
+import { TutorialPopup } from "@/modules/tutorial/TutorialPopup";
 
 // ── Types ────────────────────────────────────────────
 
@@ -35,6 +36,7 @@ interface QuestLesson {
   passingGrade: number;
   quizProblemIds: string[];
   coins: { earned: number; total: number };
+  hasTutorial: boolean;
 }
 
 interface QuestTopic {
@@ -93,6 +95,8 @@ const PHASE_COLORS: Record<string, { bg: string; ring: string; text: string }> =
   PHASE_10: { bg: "bg-slate-500", ring: "ring-slate-400", text: "text-slate-500" },
 };
 
+const TutorialContext = createContext<(lessonId: string) => void>(() => {});
+
 // ── Helpers ──────────────────────────────────────────
 
 function pct(earned: number, total: number) {
@@ -106,6 +110,7 @@ export function QuestRoad() {
   const [data, setData] = useState<QuestData | null>(null);
   const [loading, setLoading] = useState(true);
   const activeRef = useRef<HTMLDivElement>(null);
+  const [tutorialLessonId, setTutorialLessonId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/student/quest-road")
@@ -135,7 +140,14 @@ export function QuestRoad() {
   const { profile, phases = [], className, totalCoins, finalTest } = data;
 
   return (
+    <TutorialContext.Provider value={(id) => setTutorialLessonId(id)}>
     <div>
+      {tutorialLessonId && (
+        <TutorialPopup
+          lessonId={tutorialLessonId}
+          onClose={() => setTutorialLessonId(null)}
+        />
+      )}
       {/* Stats header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold">{className}</h1>
@@ -190,6 +202,7 @@ export function QuestRoad() {
         </div>
       </div>
     </div>
+    </TutorialContext.Provider>
   );
 }
 
@@ -578,6 +591,9 @@ function LessonNode({
 
       {/* Action buttons */}
       <div className="ml-10 mt-1.5 flex items-center gap-2">
+          {lesson.hasTutorial && (
+            <LearnButton lessonId={lesson.id} />
+          )}
           {lesson.problemCount > 0 && (
             <Link
               href={`/practice?lessonId=${lesson.id}`}
@@ -601,6 +617,19 @@ function LessonNode({
   );
 
   return content;
+}
+
+function LearnButton({ lessonId }: { lessonId: string }) {
+  const openTutorial = useContext(TutorialContext);
+  return (
+    <button
+      onClick={() => openTutorial(lessonId)}
+      className="flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-blue-700"
+    >
+      <Play size={11} />
+      Learn
+    </button>
+  );
 }
 
 // ── Join Class Prompt ────────────────────────────────

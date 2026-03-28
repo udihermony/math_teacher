@@ -166,6 +166,7 @@ model Lesson {
   assignments   ClassAssignment[]
   conversations Conversation[]
   sourceContent  Json?
+  tutorial       Json?          // { blocks: TutorialBlock[] } — text/latex/p5.js
   syllabusRef    String?
   estimatedHours Float?
   createdById    String?

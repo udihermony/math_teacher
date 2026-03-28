@@ -3,7 +3,9 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus, Search, Loader2, BookOpen, AlertTriangle, Link2, Zap } from "lucide-react";
+import { ArrowLeft, Plus, Search, Loader2, BookOpen, AlertTriangle, Link2, Zap, PlayCircle } from "lucide-react";
+import { TutorialChatModal } from "@/modules/tutorial/TutorialChatModal";
+import type { TutorialData } from "@/modules/tutorial/types";
 import { LessonEditor } from "@/modules/teacher/components/LessonEditor";
 import { Spinner } from "@/components/ui/Spinner";
 import { Badge } from "@/components/ui/Badge";
@@ -25,6 +27,7 @@ interface LessonData {
   description: string | null;
   content: { blocks: ContentBlock[] };
   sourceContent: LearningContext | null;
+  tutorial: TutorialData | null;
   xpReward: number;
   topic: { id: string; name: string; phase: string };
   problems: ProblemData[];
@@ -64,6 +67,7 @@ export default function EditLessonPage({
     learningContext: LearningContext;
   } | null>(null);
   const [researchError, setResearchError] = useState<string | null>(null);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   useEffect(() => {
     fetch(`/api/teacher/lessons/${lessonId}`)
@@ -294,6 +298,46 @@ export default function EditLessonPage({
           </div>
         )}
       </div>
+
+      {/* Tutorial */}
+      <div className="mb-6 rounded-lg border border-border bg-card p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold flex items-center gap-1.5">
+              <PlayCircle size={14} className="text-blue-500" />
+              Interactive Tutorial
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {lesson.tutorial
+                ? `Tutorial saved (${lesson.tutorial.blocks.length} blocks)`
+                : "Generate an interactive tutorial with text, LaTeX, and p5.js animations"}
+            </p>
+          </div>
+          <button
+            onClick={() => setTutorialOpen(true)}
+            className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            <PlayCircle size={14} />
+            {lesson.tutorial ? "Edit Tutorial" : "Generate Tutorial"}
+          </button>
+        </div>
+      </div>
+
+      {tutorialOpen && (
+        <TutorialChatModal
+          lessonId={lessonId}
+          lessonTitle={lesson.title}
+          existingTutorial={lesson.tutorial}
+          onClose={() => setTutorialOpen(false)}
+          onSaved={() => {
+            setTutorialOpen(false);
+            // Refresh lesson data
+            fetch(`/api/teacher/lessons/${lessonId}`)
+              .then((r) => r.json())
+              .then((data) => setLesson(data));
+          }}
+        />
+      )}
 
       <LessonEditor
         initialData={{
