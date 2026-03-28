@@ -44,6 +44,7 @@ export async function GET() {
       scope: t.scope,
       questionCount: t.questionCount,
       durationMinutes: t.durationMinutes,
+      passingGrade: t.passingGrade ?? t.questionCount,
       request: t.requests[0] ?? null,
     })),
   });

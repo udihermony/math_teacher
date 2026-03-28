@@ -158,7 +158,8 @@ export function ClassDashboard({
           </h2>
           <div className="space-y-2">
             {testRequests.map((tr) => {
-              const statusConfig = getTestStatusConfig(tr.status, tr.score);
+              const passed = tr.score !== null && tr.score >= tr.passingGrade;
+              const statusConfig = getTestStatusConfig(tr.status, passed);
               return (
                 <div
                   key={tr.id}
@@ -173,13 +174,13 @@ export function ClassDashboard({
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {tr.questionCount} questions
+                      {tr.questionCount} questions · Pass: {tr.passingGrade}
                       {tr.durationMinutes && ` · ${tr.durationMinutes} min`}
                     </p>
                   </div>
                   <div className="text-right">
                     {tr.status === "COMPLETED" && tr.score !== null && (
-                      <p className="text-sm font-medium">{tr.score}%</p>
+                      <p className="text-sm font-medium">{tr.score}/{tr.questionCount}</p>
                     )}
                     {tr.status === "APPROVED" && tr.approvalCode && (
                       <p className="font-mono text-sm font-bold tracking-wider text-blue-600">{tr.approvalCode}</p>
@@ -227,7 +228,7 @@ export function ClassDashboard({
   );
 }
 
-function getTestStatusConfig(status: string, score: number | null) {
+function getTestStatusConfig(status: string, passed: boolean) {
   switch (status) {
     case "PENDING":
       return {
@@ -252,12 +253,12 @@ function getTestStatusConfig(status: string, score: number | null) {
       };
     case "COMPLETED":
       return {
-        icon: <Trophy size={16} className={`shrink-0 ${score !== null && score >= 70 ? "text-green-500" : "text-red-500"}`} />,
-        label: "Done",
-        badgeClass: score !== null && score >= 70
+        icon: <Trophy size={16} className={`shrink-0 ${passed ? "text-green-500" : "text-red-500"}`} />,
+        label: passed ? "Passed" : "Not Passed",
+        badgeClass: passed
           ? "bg-green-200 text-green-800 dark:bg-green-900/50 dark:text-green-300"
           : "bg-red-200 text-red-800 dark:bg-red-900/50 dark:text-red-300",
-        containerClass: score !== null && score >= 70
+        containerClass: passed
           ? "border-green-200 bg-green-50 dark:border-green-900/50 dark:bg-green-950/30"
           : "border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30",
       };

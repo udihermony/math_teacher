@@ -11,6 +11,7 @@ interface TestInfo {
   scope: string;
   questionCount: number;
   durationMinutes: number | null;
+  passingGrade: number;
   request: {
     id: string;
     status: string;
@@ -120,7 +121,7 @@ export default function TestsPage() {
                 <div>
                   <h3 className="font-semibold">{test.title}</h3>
                   <p className="text-sm text-muted-foreground">
-                    {test.questionCount} questions
+                    {test.questionCount} questions · Pass: {test.passingGrade}
                     {test.durationMinutes && (
                       <span className="ml-2 inline-flex items-center gap-1">
                         <Clock size={12} /> {test.durationMinutes} min
@@ -157,12 +158,19 @@ export default function TestsPage() {
                   </span>
                 )}
 
-                {req?.status === "COMPLETED" && (
-                  <span className="flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700 dark:bg-green-950/30 dark:text-green-400">
-                    <Check size={12} strokeWidth={3} />
-                    Score: {req.score}/{test.questionCount}
-                  </span>
-                )}
+                {req?.status === "COMPLETED" && (() => {
+                  const passed = (req.score ?? 0) >= test.passingGrade;
+                  return (
+                    <span className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold ${
+                      passed
+                        ? "bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400"
+                        : "bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400"
+                    }`}>
+                      <Check size={12} strokeWidth={3} />
+                      {req.score}/{test.questionCount} {passed ? "Passed" : "Not passed"}
+                    </span>
+                  );
+                })()}
 
                 {req?.status === "STARTED" && (
                   <button

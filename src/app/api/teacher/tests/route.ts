@@ -11,6 +11,7 @@ const createSchema = z.object({
   title: z.string().min(1).max(200),
   questionCount: z.number().int().min(1).max(100),
   durationMinutes: z.number().int().min(1).optional(),
+  passingGrade: z.number().int().min(1).optional(),
   aiGenerate: z.boolean().default(true),
 });
 
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Invalid input", details: parsed.error.issues }, { status: 400 });
   }
 
-  const { classId, scope, scopeId, title, questionCount, durationMinutes, aiGenerate } = parsed.data;
+  const { classId, scope, scopeId, title, questionCount, durationMinutes, passingGrade, aiGenerate } = parsed.data;
 
   // Verify teacher is in this class
   const membership = await prisma.classMembership.findUnique({
@@ -84,6 +85,7 @@ export async function POST(request: NextRequest) {
       questionCount,
       problemIds: problemIds as never,
       durationMinutes: recommendedDuration,
+      passingGrade: passingGrade ?? null,
       aiGenerated: aiGenerate,
       createdById: session.user.id,
     },

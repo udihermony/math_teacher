@@ -28,6 +28,8 @@ interface TestSession {
 interface TestResult {
   score: number;
   total: number;
+  passingGrade: number;
+  passed: boolean;
   results: Array<{ problemId: string; isCorrect: boolean }>;
 }
 
@@ -165,16 +167,16 @@ export default function TestTakingPage({ params }: { params: Promise<{ requestId
       <div className="flex min-h-screen flex-col items-center justify-center p-6">
         <div className="w-full max-w-md rounded-xl border border-border bg-card p-8 text-center shadow-lg">
           <div className={`mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full text-3xl font-bold text-white ${
-            pct >= 70 ? "bg-green-500" : pct >= 50 ? "bg-amber-500" : "bg-red-500"
+            result.passed ? "bg-green-500" : "bg-red-500"
           }`}>
-            {pct}%
+            {result.score}/{result.total}
           </div>
           <h2 className="text-2xl font-bold">{session.title}</h2>
-          <p className="mt-2 text-lg text-muted-foreground">
-            {result.score} / {result.total} correct
+          <p className={`mt-2 text-lg font-semibold ${result.passed ? "text-green-600" : "text-red-600"}`}>
+            {result.passed ? "Passed!" : "Not passed"}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            {pct >= 70 ? "Great job!" : pct >= 50 ? "Keep practicing!" : "Review the material and try again."}
+            {result.score} / {result.total} correct (need {result.passingGrade} to pass)
           </p>
 
           {/* Per-question results */}

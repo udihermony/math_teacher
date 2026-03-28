@@ -307,6 +307,7 @@ model Test {
   questionCount   Int
   problemIds      Json       // string[] of generated problem IDs
   durationMinutes Int?       // teacher-set time limit (AI recommends)
+  passingGrade    Int?       // minimum correct answers to pass (null = questionCount)
   aiGenerated     Boolean    @default(false)
   status          TestStatus @default(ACTIVE)
   createdById     String

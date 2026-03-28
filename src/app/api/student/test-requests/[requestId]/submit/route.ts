@@ -19,7 +19,7 @@ export async function POST(
   const testRequest = await prisma.testRequest.findUnique({
     where: { id: requestId },
     include: {
-      test: { select: { problemIds: true, durationMinutes: true } },
+      test: { select: { problemIds: true, durationMinutes: true, passingGrade: true, questionCount: true } },
     },
   });
 
@@ -86,9 +86,14 @@ export async function POST(
     data: { status: "COMPLETED", completedAt: new Date(), score },
   });
 
+  const passingGrade = testRequest.test.passingGrade ?? testRequest.test.questionCount;
+  const passed = score >= passingGrade;
+
   return Response.json({
     score,
     total: problemIds.length,
+    passingGrade,
+    passed,
     results,
     overtime: isOvertime,
   });

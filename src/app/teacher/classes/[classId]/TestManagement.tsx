@@ -17,6 +17,7 @@ interface TestItem {
   scopeId: string;
   questionCount: number;
   durationMinutes: number | null;
+  passingGrade: number | null;
   aiGenerated: boolean;
   pendingRequests: number;
   _count: { requests: number };
@@ -56,6 +57,7 @@ export function TestManagement({ classId }: { classId: string }) {
   const [title, setTitle] = useState("");
   const [questionCount, setQuestionCount] = useState(10);
   const [durationMinutes, setDurationMinutes] = useState<number | undefined>();
+  const [passingGrade, setPassingGrade] = useState<number | undefined>();
   const [topics, setTopics] = useState<TopicOption[]>([]);
 
   useEffect(() => {
@@ -83,6 +85,7 @@ export function TestManagement({ classId }: { classId: string }) {
           title: title.trim(),
           questionCount,
           durationMinutes,
+          passingGrade,
           aiGenerate: true,
         }),
       });
@@ -206,6 +209,19 @@ export function TestManagement({ classId }: { classId: string }) {
                 className="w-32 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
               />
             </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium">Pass Grade</label>
+              <input
+                type="number"
+                min={1}
+                max={questionCount}
+                value={passingGrade ?? ""}
+                onChange={(e) => setPassingGrade(e.target.value ? parseInt(e.target.value) : undefined)}
+                placeholder={`${questionCount}`}
+                className="w-20 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+              />
+              <p className="mt-0.5 text-[10px] text-muted-foreground">of {questionCount} Qs</p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -239,7 +255,7 @@ export function TestManagement({ classId }: { classId: string }) {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{test.title}</p>
               <p className="text-xs text-muted-foreground">
-                {SCOPE_LABELS[test.scope]} · {test.questionCount} Qs
+                {SCOPE_LABELS[test.scope]} · {test.questionCount} Qs · Pass: {test.passingGrade ?? test.questionCount}
                 {test.durationMinutes && (
                   <> · <Clock size={10} className="inline" /> {test.durationMinutes} min</>
                 )}

@@ -22,6 +22,7 @@ export interface TestRequestInfo {
   testTitle: string;
   questionCount: number;
   durationMinutes: number | null;
+  passingGrade: number;
   status: string;
   score: number | null;
   approvalCode: string | null;
@@ -177,7 +178,7 @@ export default async function StudentDashboard() {
           test: { classId: membership.classId },
         },
         include: {
-          test: { select: { title: true, questionCount: true, durationMinutes: true } },
+          test: { select: { title: true, questionCount: true, durationMinutes: true, passingGrade: true } },
         },
         orderBy: { createdAt: "desc" },
       });
@@ -187,6 +188,7 @@ export default async function StudentDashboard() {
         testTitle: tr.test.title,
         questionCount: tr.test.questionCount,
         durationMinutes: tr.test.durationMinutes,
+        passingGrade: tr.test.passingGrade ?? tr.test.questionCount,
         status: tr.status,
         score: tr.score,
         approvalCode: tr.approvalCode,
