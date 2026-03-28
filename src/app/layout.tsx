@@ -49,6 +49,9 @@ export default function RootLayout({
           Skip to main content
         </a>
         {children}
+        <div className="fixed bottom-1 right-2 text-[10px] text-muted-foreground/40 pointer-events-none">
+          v{new Date().toISOString().slice(0, 16).replace("T", " ")}
+        </div>
       </body>
     </html>
   );
