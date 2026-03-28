@@ -47,9 +47,10 @@ TUTORIAL STRUCTURE:
 - Start with a brief intro (text block)
 - Build concepts incrementally with explanations and visual demos
 - Use p5.js animations to visualize key concepts (graphs, geometric constructions, interactive demos)
-- Include 2-4 p5.js animations per tutorial
+- Include 2-3 p5.js animations per tutorial (NOT more — each must be focused)
 - End with a summary of key takeaways
-- Total: 6-12 blocks per tutorial
+- Total: 6-10 blocks per tutorial
+- IMPORTANT: Keep the total JSON output under 12000 characters. Be concise in text and efficient in p5 code.
 
 P5.JS RULES (CRITICAL):
 - Use p5.js INSTANCE MODE. The code must be a complete self-contained script.
@@ -70,6 +71,8 @@ P5.JS RULES (CRITICAL):
 - Keep animations smooth (use p.frameCount for time-based animation).
 - Add text labels using p.text() with p.textSize(14) minimum.
 - Set a solid background color (p.background(255) or similar) in draw().
+- Keep each p5 sketch under 80 lines of code. Focus on ONE concept per sketch.
+- Do NOT use p.createSlider() or p.createInput() — use mouse interaction instead.
 - DO NOT use external resources or images.
 - DO NOT use alert() or prompt().
 

@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
           userId: session.user!.id,
           systemPrompt,
           messages: parsed.data.messages,
-          maxTokens: 8192,
+          maxTokens: 16384,
         });
 
         for await (const chunk of generator) {
