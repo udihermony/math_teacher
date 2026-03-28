@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { X, Send, Check, Loader2, RotateCcw } from "lucide-react";
+import { X, Send, Check, Loader2, RotateCcw, Code, Eye, Copy } from "lucide-react";
 import { TutorialRenderer } from "./TutorialRenderer";
 import type { TutorialBlock, TutorialData } from "./types";
 
@@ -28,9 +28,20 @@ export function TutorialChatModal({ lessonId, lessonTitle, existingTutorial, onC
   const chatEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Auto-generate on first open if no existing tutorial
+  const [previewMode, setPreviewMode] = useState<"visual" | "json">("visual");
+  const [jsonEdit, setJsonEdit] = useState("");
+
+  // Auto-generate on first open, or seed with existing tutorial
   useEffect(() => {
-    if (!existingTutorial && messages.length === 0) {
+    if (messages.length > 0) return;
+    if (existingTutorial) {
+      // Seed conversation with existing tutorial so AI has context
+      const json = JSON.stringify(existingTutorial.blocks, null, 2);
+      setMessages([
+        { role: "assistant", content: `Here is the current tutorial:\n\n\`\`\`json\n${json}\n\`\`\`\n\nWhat would you like me to change?` },
+      ]);
+      setJsonEdit(json);
+    } else {
       sendMessage("Generate a tutorial for this lesson.");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -111,6 +122,7 @@ export function TutorialChatModal({ lessonId, lessonTitle, existingTutorial, onC
       const blocks = extractBlocks(fullText);
       if (blocks.length > 0) {
         setPreview(blocks);
+        setJsonEdit(JSON.stringify(blocks, null, 2));
       }
     } catch (e) {
       if ((e as Error).name === "AbortError") return;
@@ -247,14 +259,75 @@ export function TutorialChatModal({ lessonId, lessonTitle, existingTutorial, onC
           </div>
 
           {/* Right: Preview */}
-          <div className="w-1/2 overflow-y-auto p-6">
-            {preview.length > 0 ? (
-              <TutorialRenderer blocks={preview} />
-            ) : (
-              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                {streaming ? "Tutorial preview will appear here..." : "No tutorial generated yet."}
-              </div>
-            )}
+          <div className="flex w-1/2 flex-col">
+            {/* Preview tabs */}
+            <div className="flex items-center gap-1 border-b border-border px-4 py-2">
+              <button
+                onClick={() => setPreviewMode("visual")}
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium ${
+                  previewMode === "visual" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"
+                }`}
+              >
+                <Eye size={12} /> Preview
+              </button>
+              <button
+                onClick={() => {
+                  setPreviewMode("json");
+                  if (preview.length > 0) setJsonEdit(JSON.stringify(preview, null, 2));
+                }}
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium ${
+                  previewMode === "json" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"
+                }`}
+              >
+                <Code size={12} /> JSON
+              </button>
+              {previewMode === "json" && (
+                <>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(jsonEdit)}
+                    className="ml-auto flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-secondary"
+                    title="Copy JSON"
+                  >
+                    <Copy size={12} /> Copy
+                  </button>
+                  <button
+                    onClick={() => {
+                      try {
+                        const parsed = JSON.parse(jsonEdit);
+                        const arr = Array.isArray(parsed) ? parsed : parsed?.blocks;
+                        if (!Array.isArray(arr)) throw new Error("Expected array");
+                        setPreview(arr);
+                        setPreviewMode("visual");
+                      } catch (e) {
+                        setError("Invalid JSON: " + (e as Error).message);
+                      }
+                    }}
+                    className="flex items-center gap-1 rounded-md bg-green-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-green-700"
+                  >
+                    <Check size={12} /> Apply
+                  </button>
+                </>
+              )}
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {previewMode === "visual" ? (
+                preview.length > 0 ? (
+                  <TutorialRenderer blocks={preview} />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                    {streaming ? "Tutorial preview will appear here..." : "No tutorial generated yet."}
+                  </div>
+                )
+              ) : (
+                <textarea
+                  value={jsonEdit}
+                  onChange={(e) => setJsonEdit(e.target.value)}
+                  className="h-full w-full resize-none rounded-md border border-border bg-background p-3 font-mono text-xs leading-relaxed"
+                  spellCheck={false}
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>
