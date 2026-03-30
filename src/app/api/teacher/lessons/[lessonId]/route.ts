@@ -9,6 +9,7 @@ const updateLessonSchema = z.object({
   content: z.object({ blocks: z.array(z.record(z.string(), z.unknown())) }).optional(),
   order: z.number().int().optional(),
   xpReward: z.number().int().optional(),
+  coinableCount: z.number().int().min(0).nullable().optional(),
 });
 
 export async function GET(

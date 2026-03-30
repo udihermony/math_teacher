@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
   const problem = await prisma.problem.findUnique({
     where: { id: problemId },
     include: {
-      lesson: { select: { xpReward: true, id: true, topicId: true, topic: { select: { phase: true } } } },
+      lesson: { select: { xpReward: true, id: true, topicId: true, coinableCount: true, topic: { select: { phase: true } } } },
       skills: { select: { skillId: true } },
     },
   });
@@ -160,6 +160,10 @@ export async function POST(request: NextRequest) {
           select: { practicePayableCount: true },
         });
         payableCount = classAssignment?.practicePayableCount ?? null;
+      }
+      // Fall back to lesson-level coinableCount if no class assignment override
+      if (payableCount == null) {
+        payableCount = problem.lesson.coinableCount;
       }
 
       const answerCoin = await awardAnswerCoin(session.user.id, problem.lesson.id, problem.difficulty, phase, payableCount);

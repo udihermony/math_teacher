@@ -30,6 +30,7 @@ interface LessonData {
   sourceContent: LearningContext | null;
   tutorial: TutorialData | null;
   xpReward: number;
+  coinableCount: number | null;
   topic: { id: string; name: string; phase: string };
   problems: ProblemData[];
 }
@@ -85,6 +86,7 @@ export default function EditLessonPage({
     slug: string;
     description: string;
     xpReward: number;
+    coinableCount: number | null;
     blocks: ContentBlock[];
   }) {
     setSaving(true);
@@ -96,6 +98,7 @@ export default function EditLessonPage({
           title: data.title,
           description: data.description,
           xpReward: data.xpReward,
+          coinableCount: data.coinableCount,
           content: { blocks: data.blocks },
         }),
       });
@@ -380,6 +383,7 @@ export default function EditLessonPage({
           slug: lesson.slug,
           description: lesson.description || "",
           xpReward: lesson.xpReward,
+          coinableCount: lesson.coinableCount,
           blocks: lesson.content.blocks as ContentBlock[],
         }}
         topicId={lesson.topic.id}

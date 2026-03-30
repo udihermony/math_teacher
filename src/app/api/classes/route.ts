@@ -53,7 +53,13 @@ const createSchema = z.object({
   name: z.string().min(1).max(100),
   phase: phaseEnum.optional(),
   endPhase: phaseEnum.optional(),
-});
+  coinsExchangeable: z.boolean().optional(),
+  totalEuros: z.number().positive().optional(),
+  ibExamBonusEuros: z.number().positive().optional(),
+}).refine(
+  (data) => !data.coinsExchangeable || (data.totalEuros != null && data.totalEuros > 0),
+  { message: "Total euros required when coins are exchangeable", path: ["totalEuros"] }
+);
 
 /** POST /api/classes — teacher creates a class. */
 export async function POST(request: NextRequest) {
@@ -77,6 +83,9 @@ export async function POST(request: NextRequest) {
       code,
       phase: parsed.data.phase ?? "PHASE_0",
       endPhase: parsed.data.endPhase ?? "PHASE_10",
+      coinsExchangeable: parsed.data.coinsExchangeable ?? false,
+      totalEuros: parsed.data.coinsExchangeable ? parsed.data.totalEuros : null,
+      ibExamBonusEuros: parsed.data.coinsExchangeable ? parsed.data.ibExamBonusEuros : null,
       members: {
         create: {
           userId: session.user.id,

@@ -162,6 +162,7 @@ model Lesson {
   content     Json
   order       Int
   xpReward    Int      @default(10)
+  coinableCount Int?               // max practice questions that earn coins (null = use phase default)
   problems      Problem[]
   assignments   ClassAssignment[]
   conversations Conversation[]
@@ -264,6 +265,9 @@ model Class {
   assignments     ClassAssignment[]
   tests           Test[]
   activeStudents  StudentProfile[]
+  coinsExchangeable Boolean         @default(false)
+  totalEuros        Float?
+  ibExamBonusEuros  Float?
   createdAt       DateTime          @default(now())
 }
 
@@ -395,6 +399,8 @@ enum CoinReason {
   CORRECT_ANSWER
   ASSIGNMENT_COMPLETE
   TOPIC_COMPLETE
+  TEST_TOPIC_PASS
+  TEST_PHASE_PASS
 }
 
 model CoinTransaction {

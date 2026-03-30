@@ -57,6 +57,7 @@ export async function GET() {
           title: true,
           order: true,
           tutorial: true,
+          coinableCount: true,
           problems: {
             where: { purpose: "PRACTICE" },
             select: { id: true },
@@ -173,7 +174,7 @@ export async function GET() {
         }
 
         // Coins (scaled by phase)
-        const phaseMaxPractice = maxPracticeCoins(phase);
+        const phaseMaxPractice = lesson.coinableCount ?? maxPracticeCoins(phase);
         const phaseQuizBonus = quizBonus(phase);
         const earnedPracticeCoins = Math.min(practiceCoins.get(lesson.id) ?? 0, phaseMaxPractice);
         const earnedQuizBonus = assignment && assignmentBonusEarned.has(assignment.id) ? phaseQuizBonus : 0;

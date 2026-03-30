@@ -42,6 +42,21 @@ export function topicBonus(phase: string): number {
   return Math.round(15 * mult);
 }
 
+/** Bonus for passing a topic-scope test, scaled by phase. */
+export function testTopicBonus(phase: string): number {
+  const mult = PHASE_MULTIPLIER[phase] ?? 1;
+  return Math.round(10 * mult);
+}
+
+/** Bonus for passing a phase-scope test, scaled by phase. */
+export function testPhaseBonus(phase: string): number {
+  const mult = PHASE_MULTIPLIER[phase] ?? 1;
+  return Math.round(25 * mult);
+}
+
+/** Fixed bonus for the final test. */
+export const FINAL_TEST_BONUS = 50;
+
 /**
  * Award coins for a correct answer, scaled by difficulty.
  * Capped at maxPracticeCoins(phase) per lesson.
@@ -226,4 +241,89 @@ export async function getCoinsEarnedForLesson(
   return prisma.coinTransaction.count({
     where: { userId, reason: "CORRECT_ANSWER", sourceId: lessonId },
   });
+}
+
+/**
+ * Calculate total possible coins for a class.
+ * Deterministic — every coin source has a cap, so the result is exact.
+ */
+export async function totalPossibleCoins(classId: string): Promise<{
+  grandTotal: number;
+  breakdown: {
+    practice: number;
+    quizBonuses: number;
+    topicBonuses: number;
+    testTopicBonuses: number;
+    testPhaseBonuses: number;
+    finalTestBonus: number;
+  };
+}> {
+  const cls = await prisma.class.findUniqueOrThrow({
+    where: { id: classId },
+    select: { phase: true, endPhase: true },
+  });
+
+  const phaseOrder = Object.keys(PHASE_MULTIPLIER);
+  const startIdx = phaseOrder.indexOf(cls.phase);
+  const endIdx = phaseOrder.indexOf(cls.endPhase);
+  const phases = phaseOrder.slice(startIdx, endIdx + 1);
+
+  // Fetch all topics in the class's phase range
+  const topics = await prisma.topic.findMany({
+    where: { phase: { in: phases as never } },
+    include: {
+      lessons: {
+        select: {
+          id: true,
+          coinableCount: true,
+          assignments: {
+            where: { classId },
+            select: { id: true },
+          },
+        },
+      },
+    },
+  });
+
+  let practice = 0;
+  let quizBonuses = 0;
+  let topicBonuses = 0;
+  let testTopicBonuses = 0;
+  let testPhaseBonuses = 0;
+
+  const phasesWithTopics = new Set<string>();
+
+  for (const topic of topics) {
+    const phase = topic.phase;
+    phasesWithTopics.add(phase);
+
+    for (const lesson of topic.lessons) {
+      practice += lesson.coinableCount ?? maxPracticeCoins(phase);
+      if (lesson.assignments.length > 0) {
+        quizBonuses += quizBonus(phase);
+      }
+    }
+    topicBonuses += topicBonus(phase);
+    testTopicBonuses += testTopicBonus(phase);
+  }
+
+  for (const phase of phases) {
+    if (phasesWithTopics.has(phase)) {
+      testPhaseBonuses += testPhaseBonus(phase);
+    }
+  }
+
+  const grandTotal = practice + quizBonuses + topicBonuses + testTopicBonuses + testPhaseBonuses + FINAL_TEST_BONUS;
+
+  return {
+    grandTotal,
+    breakdown: {
+      practice,
+      quizBonuses,
+      topicBonuses,
+      testTopicBonuses,
+      testPhaseBonuses,
+      finalTestBonus: FINAL_TEST_BONUS,
+    },
+  };
 }

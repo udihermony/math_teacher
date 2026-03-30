@@ -24,6 +24,9 @@ export default function TeacherClassesPage() {
   const [newName, setNewName] = useState("");
   const [startPhase, setStartPhase] = useState("PHASE_0");
   const [endPhase, setEndPhase] = useState("PHASE_10");
+  const [coinsExchangeable, setCoinsExchangeable] = useState(false);
+  const [totalEuros, setTotalEuros] = useState("");
+  const [ibExamBonusEuros, setIbExamBonusEuros] = useState("");
   const [creating, setCreating] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
@@ -60,7 +63,14 @@ export default function TeacherClassesPage() {
     const res = await fetch("/api/classes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName.trim(), phase: startPhase, endPhase }),
+      body: JSON.stringify({
+        name: newName.trim(),
+        phase: startPhase,
+        endPhase,
+        coinsExchangeable,
+        ...(coinsExchangeable && totalEuros ? { totalEuros: parseFloat(totalEuros) } : {}),
+        ...(coinsExchangeable && ibExamBonusEuros ? { ibExamBonusEuros: parseFloat(ibExamBonusEuros) } : {}),
+      }),
     });
     if (res.ok) {
       setNewName("");
@@ -140,7 +150,47 @@ export default function TeacherClassesPage() {
                 </select>
               </div>
             </div>
-            <Button onClick={createClass} disabled={creating}>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={coinsExchangeable}
+                  onChange={(e) => setCoinsExchangeable(e.target.checked)}
+                  className="rounded border-border"
+                />
+                Coins exchangeable for euros
+              </label>
+              {coinsExchangeable && (
+                <div className="grid grid-cols-2 gap-3 pl-6">
+                  <div>
+                    <label className="mb-1 block text-xs text-muted-foreground">Total quest budget (EUR)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={totalEuros}
+                      onChange={(e) => setTotalEuros(e.target.value)}
+                      placeholder="e.g. 50"
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-muted-foreground">IB exam bonus (EUR, optional)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={ibExamBonusEuros}
+                      onChange={(e) => setIbExamBonusEuros(e.target.value)}
+                      placeholder="e.g. 20"
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            <Button onClick={createClass} disabled={creating || (coinsExchangeable && !totalEuros)}>
               {creating ? "Creating..." : "Create Class"}
             </Button>
           </div>

@@ -11,6 +11,7 @@ const createLessonSchema = z.object({
   content: z.object({ blocks: z.array(z.record(z.string(), z.unknown())) }),
   order: z.number().int(),
   xpReward: z.number().int().default(10),
+  coinableCount: z.number().int().min(0).nullable().optional(),
 });
 
 export async function POST(request: NextRequest) {

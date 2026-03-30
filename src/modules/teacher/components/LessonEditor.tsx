@@ -19,6 +19,7 @@ interface LessonData {
   slug: string;
   description: string;
   xpReward: number;
+  coinableCount: number | null;
   blocks: ContentBlock[];
 }
 
@@ -47,6 +48,7 @@ export function LessonEditor({ initialData, topicId, onSave, saving }: LessonEdi
   const [slug, setSlug] = useState(initialData?.slug || "");
   const [description, setDescription] = useState(initialData?.description || "");
   const [xpReward, setXpReward] = useState(initialData?.xpReward || 10);
+  const [coinableCount, setCoinableCount] = useState<number | null>(initialData?.coinableCount ?? null);
   const [blocks, setBlocks] = useState<ContentBlock[]>(
     initialData?.blocks || [{ type: "text", content: "" }]
   );
@@ -91,7 +93,7 @@ export function LessonEditor({ initialData, topicId, onSave, saving }: LessonEdi
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await onSave({ title, slug, description, xpReward, blocks });
+    await onSave({ title, slug, description, xpReward, coinableCount, blocks });
   }
 
   return (
@@ -131,14 +133,41 @@ export function LessonEditor({ initialData, topicId, onSave, saving }: LessonEdi
         />
       </div>
 
-      <Input
-        label="XP Reward"
-        id="xp"
-        type="number"
-        value={String(xpReward)}
-        onChange={(e) => setXpReward(parseInt(e.target.value) || 10)}
-        className="w-32"
-      />
+      <div className="flex items-end gap-4">
+        <Input
+          label="XP Reward"
+          id="xp"
+          type="number"
+          value={String(xpReward)}
+          onChange={(e) => setXpReward(parseInt(e.target.value) || 10)}
+          className="w-32"
+        />
+        <div className="w-48">
+          <label htmlFor="coinable" className="mb-1 block text-sm font-medium">
+            Coinable Questions
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              id="coinable"
+              type="number"
+              min={0}
+              value={coinableCount ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                setCoinableCount(v === "" ? null : Math.max(0, parseInt(v) || 0));
+              }}
+              placeholder="Auto"
+              className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            />
+            <span className="text-xs text-muted-foreground">
+              {coinableCount == null ? "(phase default)" : ""}
+            </span>
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            How many practice answers earn coins
+          </p>
+        </div>
+      </div>
 
       {/* Content blocks */}
       <div>

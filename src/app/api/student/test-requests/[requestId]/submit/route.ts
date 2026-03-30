@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { validateAnswer } from "@/modules/problems/validators/expression-parser";
+import { testTopicBonus, testPhaseBonus } from "@/modules/gamification/coin-calculator";
 
 /** POST — submit test answers */
 export async function POST(
@@ -19,7 +20,7 @@ export async function POST(
   const testRequest = await prisma.testRequest.findUnique({
     where: { id: requestId },
     include: {
-      test: { select: { problemIds: true, durationMinutes: true, passingGrade: true, questionCount: true } },
+      test: { select: { problemIds: true, durationMinutes: true, passingGrade: true, questionCount: true, scope: true, scopeId: true } },
     },
   });
 
@@ -89,6 +90,46 @@ export async function POST(
   const passingGrade = testRequest.test.passingGrade ?? testRequest.test.questionCount;
   const passed = score >= passingGrade;
 
+  // Award coins for passing tests
+  let coinsAwarded = 0;
+  if (passed && testRequest.test.scope && testRequest.test.scopeId) {
+    let coinAmount = 0;
+    let reason: "TEST_TOPIC_PASS" | "TEST_PHASE_PASS" | null = null;
+
+    if (testRequest.test.scope === "TOPIC") {
+      const topic = await prisma.topic.findUnique({
+        where: { id: testRequest.test.scopeId },
+        select: { phase: true },
+      });
+      if (topic) {
+        coinAmount = testTopicBonus(topic.phase);
+        reason = "TEST_TOPIC_PASS";
+      }
+    } else if (testRequest.test.scope === "PHASE") {
+      coinAmount = testPhaseBonus(testRequest.test.scopeId);
+      reason = "TEST_PHASE_PASS";
+    }
+
+    if (coinAmount > 0 && reason) {
+      // Idempotency: check not already awarded
+      const existing = await prisma.coinTransaction.findFirst({
+        where: { userId: session.user.id, reason, sourceId: requestId },
+      });
+      if (!existing) {
+        await prisma.$transaction([
+          prisma.coinTransaction.create({
+            data: { userId: session.user.id, amount: coinAmount, reason, sourceId: requestId },
+          }),
+          prisma.studentProfile.update({
+            where: { userId: session.user.id },
+            data: { coins: { increment: coinAmount } },
+          }),
+        ]);
+        coinsAwarded = coinAmount;
+      }
+    }
+  }
+
   return Response.json({
     score,
     total: problemIds.length,
@@ -96,5 +137,6 @@ export async function POST(
     passed,
     results,
     overtime: isOvertime,
+    coinsAwarded,
   });
 }
