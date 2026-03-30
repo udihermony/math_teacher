@@ -63,6 +63,7 @@ function AIAssistantInner() {
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [promptCopied, setPromptCopied] = useState(false);
   const [pasteJson, setPasteJson] = useState("");
+  const [pasteError, setPasteError] = useState<string | null>(null);
 
   // Generate lesson form state
   const [genTopic, setGenTopic] = useState("");
@@ -329,8 +330,40 @@ function AIAssistantInner() {
     });
   }
 
+  function validateProblem(p: Record<string, unknown>, idx: number): string | null {
+    const VALID_TYPES = ["MULTIPLE_CHOICE", "FREE_INPUT", "DRAG_AND_DROP", "GRAPHING", "PROOF_BUILDER", "WORKED_SOLUTION"];
+    if (!p.type || !VALID_TYPES.includes(p.type as string)) {
+      return `Problem #${idx + 1}: invalid or missing "type". Must be one of: ${VALID_TYPES.join(", ")}`;
+    }
+    if (typeof p.difficulty !== "number" || p.difficulty < 1 || p.difficulty > 10) {
+      return `Problem #${idx + 1}: "difficulty" must be a number 1-10`;
+    }
+    if (!p.content || typeof p.content !== "object") {
+      return `Problem #${idx + 1}: missing "content" object`;
+    }
+    const content = p.content as Record<string, unknown>;
+    if (!content.question || typeof content.question !== "string") {
+      return `Problem #${idx + 1}: content.question is missing or not a string`;
+    }
+    if (p.type === "MULTIPLE_CHOICE") {
+      if (!Array.isArray(content.options) || content.options.length < 2) {
+        return `Problem #${idx + 1}: MULTIPLE_CHOICE must have content.options array (at least 2)`;
+      }
+      if (typeof content.correctIndex !== "number") {
+        return `Problem #${idx + 1}: MULTIPLE_CHOICE must have content.correctIndex (number)`;
+      }
+    }
+    if (p.type === "FREE_INPUT") {
+      if (!content.correctAnswer) {
+        return `Problem #${idx + 1}: FREE_INPUT must have content.correctAnswer`;
+      }
+    }
+    return null;
+  }
+
   async function handlePasteImport(importType: "problems" | "lesson") {
     if (!pasteJson.trim()) return;
+    setPasteError(null);
 
     // Strip markdown code fences if present
     let raw = pasteJson.trim();
@@ -340,17 +373,23 @@ function AIAssistantInner() {
     let parsed;
     try {
       parsed = JSON.parse(raw);
-    } catch {
-      alert("Invalid JSON. Please check the pasted content.");
+    } catch (e) {
+      setPasteError(`Invalid JSON: ${(e as Error).message}`);
       return;
     }
 
     if (importType === "problems") {
       if (!selectedLessonId) {
-        alert("Please select a topic and lesson in the header dropdowns first.");
+        setPasteError("Select a topic and lesson in the header dropdowns first.");
         return;
       }
       const problems = Array.isArray(parsed) ? parsed : parsed.problems ? parsed.problems : [parsed];
+
+      // Validate each problem
+      for (let i = 0; i < problems.length; i++) {
+        const err = validateProblem(problems[i], i);
+        if (err) { setPasteError(err); return; }
+      }
 
       setSaving("problems");
       try {
@@ -368,18 +407,20 @@ function AIAssistantInner() {
           const result = await res.json();
           setSaveSuccess(`Imported ${result.problemsCreated} problems to lesson`);
           setPasteJson("");
-
           setTimeout(() => setSaveSuccess(null), 5000);
         } else {
           const err = await res.json();
-          alert(err.error || "Failed to save");
+          const details = err.details?.map((d: { message: string; path: (string | number)[] }) =>
+            `${d.path.join(".")}: ${d.message}`
+          ).join("; ");
+          setPasteError(details || err.error || "Failed to save");
         }
       } finally {
         setSaving(null);
       }
     } else {
       if (!selectedTopicId) {
-        alert("Please select a topic in the header dropdown first.");
+        setPasteError("Select a topic in the header dropdown first.");
         return;
       }
       const problems = parsed.problems || [];
@@ -388,6 +429,21 @@ function AIAssistantInner() {
       const title = parsed.title || parsed.topic || "Untitled Lesson";
       const slug = parsed.slug || title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now();
       const description = parsed.description || parsed.learningObjectives?.join("; ") || "";
+
+      if (!title || title === "Untitled Lesson") {
+        setPasteError('Missing "title" in the JSON.');
+        return;
+      }
+      if (!blocks.length) {
+        setPasteError('No content blocks found. Expected "blocks" or "content.blocks" array.');
+        return;
+      }
+
+      // Validate embedded problems if any
+      for (let i = 0; i < problems.length; i++) {
+        const err = validateProblem(problems[i], i);
+        if (err) { setPasteError(err); return; }
+      }
 
       setSaving("lesson");
       try {
@@ -404,11 +460,13 @@ function AIAssistantInner() {
           const result = await res.json();
           setSaveSuccess(`Imported lesson "${result.lesson.title}" with ${result.problemsCreated} problems`);
           setPasteJson("");
-
           setTimeout(() => setSaveSuccess(null), 5000);
         } else {
           const err = await res.json();
-          alert(err.error || "Failed to save");
+          const details = err.details?.map((d: { message: string; path: (string | number)[] }) =>
+            `${d.path.join(".")}: ${d.message}`
+          ).join("; ");
+          setPasteError(details || err.error || "Failed to save");
         }
       } finally {
         setSaving(null);
@@ -814,12 +872,17 @@ function AIAssistantInner() {
                 </label>
                 <textarea
                   value={pasteJson}
-                  onChange={(e) => setPasteJson(e.target.value)}
+                  onChange={(e) => { setPasteJson(e.target.value); setPasteError(null); }}
                   rows={6}
                   placeholder='Paste JSON here, e.g. [{"type": "MULTIPLE_CHOICE", "difficulty": 5, ...}]'
-                  className="w-full resize-y rounded-md border border-border bg-background p-2 font-mono text-xs"
+                  className={`w-full resize-y rounded-md border bg-background p-2 font-mono text-xs ${
+                    pasteError ? "border-red-400" : "border-border"
+                  }`}
                   spellCheck={false}
                 />
+                {pasteError && (
+                  <p className="text-xs text-red-500">{pasteError}</p>
+                )}
                 {pasteJson.trim() && (
                   <div className="flex gap-2">
                     <button
