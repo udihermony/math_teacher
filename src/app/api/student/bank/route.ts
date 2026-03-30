@@ -40,14 +40,27 @@ export async function GET() {
     select: { activeClassId: true, coins: true },
   });
 
-  if (!profile?.activeClassId) {
-    return Response.json({ hasClass: false });
-  }
+  let membership = profile?.activeClassId
+    ? await prisma.classMembership.findFirst({
+        where: { userId, classId: profile.activeClassId, role: "STUDENT" },
+        include: { class: true },
+      })
+    : null;
 
-  const membership = await prisma.classMembership.findFirst({
-    where: { userId, classId: profile.activeClassId, role: "STUDENT" },
-    include: { class: true },
-  });
+  // Fallback: if no activeClassId set, find any class membership and set it
+  if (!membership) {
+    const fallback = await prisma.classMembership.findFirst({
+      where: { userId, role: "STUDENT" },
+      include: { class: true },
+    });
+    if (fallback) {
+      await prisma.studentProfile.updateMany({
+        where: { userId },
+        data: { activeClassId: fallback.classId },
+      });
+      membership = fallback;
+    }
+  }
 
   if (!membership) {
     return Response.json({ hasClass: false });
@@ -292,7 +305,7 @@ export async function GET() {
       totalEuros: cls.totalEuros,
       ibExamBonusEuros: cls.ibExamBonusEuros,
     },
-    balance: profile.coins ?? 0,
+    balance: profile?.coins ?? 0,
     totalCollected,
     totalRedeemable,
     totalPossible: grandTotal,

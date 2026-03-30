@@ -45,5 +45,11 @@ export async function POST(request: NextRequest) {
     },
   });
 
+  // Set as active class if student doesn't have one yet
+  await prisma.studentProfile.updateMany({
+    where: { userId: session.user.id, activeClassId: null },
+    data: { activeClassId: cls.id },
+  });
+
   return Response.json({ success: true, className: cls.name });
 }
