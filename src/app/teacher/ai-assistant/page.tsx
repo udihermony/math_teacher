@@ -15,6 +15,7 @@ import {
   Save,
   Loader2,
   ClipboardCopy,
+  ClipboardPaste,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
 import { FileUploader, UploadedFile } from "@/modules/teacher/components/FileUploader";
@@ -61,6 +62,8 @@ function AIAssistantInner() {
   const [saving, setSaving] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [promptCopied, setPromptCopied] = useState(false);
+  const [pasteJson, setPasteJson] = useState("");
+  const [showPaste, setShowPaste] = useState(false);
 
   // Generate lesson form state
   const [genTopic, setGenTopic] = useState("");
@@ -325,6 +328,93 @@ function AIAssistantInner() {
       difficultyMin: probDiffMin,
       difficultyMax: probDiffMax,
     });
+  }
+
+  async function handlePasteImport(importType: "problems" | "lesson") {
+    if (!pasteJson.trim()) return;
+
+    // Strip markdown code fences if present
+    let raw = pasteJson.trim();
+    const fenceMatch = raw.match(/```(?:json)?\s*\n([\s\S]*?)\n```/);
+    if (fenceMatch) raw = fenceMatch[1];
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      alert("Invalid JSON. Please check the pasted content.");
+      return;
+    }
+
+    if (importType === "problems") {
+      if (!selectedLessonId) {
+        alert("Please select a topic and lesson in the header dropdowns first.");
+        return;
+      }
+      const problems = Array.isArray(parsed) ? parsed : parsed.problems ? parsed.problems : [parsed];
+
+      setSaving("problems");
+      try {
+        const res = await fetch("/api/ai/save-generated", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "problems",
+            lessonId: selectedLessonId,
+            purpose: probPurpose,
+            data: problems,
+          }),
+        });
+        if (res.ok) {
+          const result = await res.json();
+          setSaveSuccess(`Imported ${result.problemsCreated} problems to lesson`);
+          setPasteJson("");
+          setShowPaste(false);
+          setTimeout(() => setSaveSuccess(null), 5000);
+        } else {
+          const err = await res.json();
+          alert(err.error || "Failed to save");
+        }
+      } finally {
+        setSaving(null);
+      }
+    } else {
+      if (!selectedTopicId) {
+        alert("Please select a topic in the header dropdown first.");
+        return;
+      }
+      const problems = parsed.problems || [];
+      delete parsed.problems;
+      const blocks = parsed.blocks || parsed.content?.blocks || [];
+      const title = parsed.title || parsed.topic || "Untitled Lesson";
+      const slug = parsed.slug || title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now();
+      const description = parsed.description || parsed.learningObjectives?.join("; ") || "";
+
+      setSaving("lesson");
+      try {
+        const res = await fetch("/api/ai/save-generated", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "lesson",
+            topicId: selectedTopicId,
+            data: { title, slug, description, content: { blocks }, problems },
+          }),
+        });
+        if (res.ok) {
+          const result = await res.json();
+          setSaveSuccess(`Imported lesson "${result.lesson.title}" with ${result.problemsCreated} problems`);
+          setPasteJson("");
+          setShowPaste(false);
+          setTimeout(() => setSaveSuccess(null), 5000);
+        } else {
+          const err = await res.json();
+          alert(err.error || "Failed to save");
+        }
+      } finally {
+        setSaving(null);
+      }
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -717,7 +807,50 @@ function AIAssistantInner() {
                   {promptCopied ? <Check size={14} /> : <ClipboardCopy size={14} />}
                   {promptCopied ? "Copied!" : "Copy Prompt"}
                 </button>
+                <button
+                  onClick={() => setShowPaste(!showPaste)}
+                  className={`flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm hover:bg-secondary ${
+                    showPaste ? "border-primary text-primary" : "border-border text-muted-foreground"
+                  }`}
+                  title="Paste JSON from an external LLM"
+                >
+                  <ClipboardPaste size={14} />
+                  Paste & Import
+                </button>
               </div>
+              {showPaste && (
+                <div className="rounded-lg border border-border bg-background p-3 space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Paste the JSON output from an external LLM below. Select a topic and lesson in the header first.
+                  </p>
+                  <textarea
+                    value={pasteJson}
+                    onChange={(e) => setPasteJson(e.target.value)}
+                    rows={8}
+                    placeholder='Paste JSON array of problems here, e.g. [{"type": "MULTIPLE_CHOICE", ...}]'
+                    className="w-full resize-y rounded-md border border-border bg-background p-2 font-mono text-xs"
+                    spellCheck={false}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handlePasteImport("problems")}
+                      disabled={!pasteJson.trim() || !!saving}
+                      className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {saving === "problems" ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                      Save as Problems
+                    </button>
+                    <button
+                      onClick={() => handlePasteImport("lesson")}
+                      disabled={!pasteJson.trim() || !!saving}
+                      className="flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {saving === "lesson" ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                      Save as Lesson
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
