@@ -176,6 +176,7 @@ model Lesson {
   conversations Conversation[]
   sourceContent  Json?
   tutorial       Json?          // { blocks: TutorialBlock[] } — text/latex/p5.js
+  deepDive       Json?          // { blocks: TutorialBlock[], quiz: Problem[] } — enrichment content
   syllabusRef    String?
   estimatedHours Float?
   createdById    String?
@@ -409,6 +410,7 @@ enum CoinReason {
   TOPIC_COMPLETE
   TEST_TOPIC_PASS
   TEST_PHASE_PASS
+  DEEP_DIVE
 }
 
 model CoinTransaction {

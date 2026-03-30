@@ -4,6 +4,7 @@ import type { Phase } from "@/generated/prisma/client";
 import {
   maxPracticeCoins,
   quizBonus,
+  deepDiveBonus,
   topicBonus,
   testTopicBonus,
   testPhaseBonus,
@@ -220,18 +221,20 @@ export async function GET() {
     const topicData = phaseTopics.map((topic) => {
       const lessons = topic.lessons.map((lesson) => {
         const maxPractice = lesson.coinableCount ?? maxPracticeCoins(phase);
-        // Every lesson assumed to have a quiz
         const maxQuiz = quizBonus(phase);
+        const maxDeepDive = deepDiveBonus(phase);
 
-        // Find earned practice coins for this lesson
         const practiceEarned = coinTransactions
           .filter((tx) => tx.reason === "CORRECT_ANSWER" && tx.sourceId === lesson.id)
           .reduce((s, tx) => s + tx.amount, 0);
 
-        // Find earned quiz bonus
         const quizEarned = lesson.assignments.some((a) =>
           coinTransactions.some((tx) => tx.reason === "ASSIGNMENT_COMPLETE" && tx.sourceId === a.id)
         ) ? quizBonus(phase) : 0;
+
+        const deepDiveEarned = coinTransactions
+          .filter((tx) => tx.reason === "DEEP_DIVE" && tx.sourceId === lesson.id)
+          .reduce((s, tx) => s + tx.amount, 0);
 
         return {
           id: lesson.id,
@@ -240,11 +243,13 @@ export async function GET() {
           maxPractice,
           quizBonus: quizEarned,
           maxQuiz,
+          deepDiveBonus: Math.min(deepDiveEarned, maxDeepDive),
+          maxDeepDive,
         };
       });
 
       const collected = topicCollected.get(topic.id) ?? 0;
-      const possible = lessons.reduce((s, l) => s + l.maxPractice + l.maxQuiz, 0)
+      const possible = lessons.reduce((s, l) => s + l.maxPractice + l.maxQuiz + l.maxDeepDive, 0)
         + topicBonus(phase) + testTopicBonus(phase);
 
       return {

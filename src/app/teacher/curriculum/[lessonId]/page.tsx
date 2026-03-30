@@ -3,10 +3,16 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus, Search, Loader2, BookOpen, AlertTriangle, Link2, Zap, PlayCircle, Eye } from "lucide-react";
+import { ArrowLeft, Plus, Search, Loader2, BookOpen, AlertTriangle, Link2, Zap, PlayCircle, Eye, Compass } from "lucide-react";
 import { TutorialChatModal } from "@/modules/tutorial/TutorialChatModal";
+import { DeepDiveChatModal } from "@/modules/deep-dive/DeepDiveChatModal";
 import { TutorialRenderer } from "@/modules/tutorial/TutorialRenderer";
 import type { TutorialData } from "@/modules/tutorial/types";
+
+interface DeepDiveData {
+  blocks: TutorialData["blocks"];
+  quiz: Record<string, unknown>[];
+}
 import { LessonEditor } from "@/modules/teacher/components/LessonEditor";
 import { Spinner } from "@/components/ui/Spinner";
 import { Badge } from "@/components/ui/Badge";
@@ -29,6 +35,7 @@ interface LessonData {
   content: { blocks: ContentBlock[] };
   sourceContent: LearningContext | null;
   tutorial: TutorialData | null;
+  deepDive: DeepDiveData | null;
   xpReward: number;
   coinableCount: number | null;
   topic: { id: string; name: string; phase: string };
@@ -71,6 +78,8 @@ export default function EditLessonPage({
   const [researchError, setResearchError] = useState<string | null>(null);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [tutorialPreview, setTutorialPreview] = useState(false);
+  const [deepDiveOpen, setDeepDiveOpen] = useState(false);
+  const [deepDivePreview, setDeepDivePreview] = useState(false);
 
   useEffect(() => {
     fetch(`/api/teacher/lessons/${lessonId}`)
@@ -369,7 +378,91 @@ export default function EditLessonPage({
           onClose={() => setTutorialOpen(false)}
           onSaved={() => {
             setTutorialOpen(false);
-            // Refresh lesson data
+            fetch(`/api/teacher/lessons/${lessonId}`)
+              .then((r) => r.json())
+              .then((data) => setLesson(data));
+          }}
+        />
+      )}
+
+      {/* Deep Dive */}
+      <div className="mb-6 rounded-lg border border-border bg-card p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold flex items-center gap-1.5">
+              <Compass size={14} className="text-purple-500" />
+              Deep Dive
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {lesson.deepDive
+                ? `Deep dive saved (${lesson.deepDive.blocks.length} blocks, ${lesson.deepDive.quiz.length} quiz questions)`
+                : "Enrichment: history, real-world connections, and a challenging quiz"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {lesson.deepDive && (
+              <button
+                onClick={() => setDeepDivePreview(true)}
+                className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-secondary"
+              >
+                <Eye size={14} />
+                Preview
+              </button>
+            )}
+            <button
+              onClick={() => setDeepDiveOpen(true)}
+              className="flex items-center gap-1.5 rounded-md bg-purple-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-purple-700"
+            >
+              <Compass size={14} />
+              {lesson.deepDive ? "Edit Deep Dive" : "Generate Deep Dive"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {deepDivePreview && lesson.deepDive && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setDeepDivePreview(false)}>
+          <div
+            className="flex h-[85vh] w-[90vw] max-w-3xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-border px-5 py-3">
+              <h2 className="text-lg font-semibold">{lesson.title} — Deep Dive Preview</h2>
+              <button
+                onClick={() => setDeepDivePreview(false)}
+                className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <TutorialRenderer blocks={lesson.deepDive.blocks} />
+              {lesson.deepDive.quiz.length > 0 && (
+                <div className="mt-6 border-t border-border pt-4">
+                  <h3 className="font-semibold mb-3">Quiz ({lesson.deepDive.quiz.length} questions)</h3>
+                  {lesson.deepDive.quiz.map((q, i) => {
+                    const content = q.content as Record<string, unknown> | undefined;
+                    return (
+                      <div key={i} className="mb-3 rounded-lg border border-border p-3 text-sm">
+                        <p className="font-medium">Q{i + 1}. {content?.question as string}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deepDiveOpen && (
+        <DeepDiveChatModal
+          lessonId={lessonId}
+          lessonTitle={lesson.title}
+          existingDeepDive={lesson.deepDive}
+          onClose={() => setDeepDiveOpen(false)}
+          onSaved={() => {
+            setDeepDiveOpen(false);
             fetch(`/api/teacher/lessons/${lessonId}`)
               .then((r) => r.json())
               .then((data) => setLesson(data));

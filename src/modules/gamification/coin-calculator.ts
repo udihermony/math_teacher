@@ -28,13 +28,18 @@ export function coinsForDifficulty(difficulty: number): number {
 /** Max practice coins earnable for a lesson, scaled by phase. */
 export function maxPracticeCoins(phase: string): number {
   const mult = PHASE_MULTIPLIER[phase] ?? 1;
-  return Math.round(10 * mult);
+  return Math.round(20 * mult);
 }
 
 /** Lesson quiz completion bonus, scaled by phase. Every lesson assumed to have one. */
 export function quizBonus(phase: string): number {
   const mult = PHASE_MULTIPLIER[phase] ?? 1;
   return Math.round(15 * mult);
+}
+
+/** Deep dive bonus = 15% of lesson base (practice + quiz), scaled by phase. */
+export function deepDiveBonus(phase: string): number {
+  return Math.round((maxPracticeCoins(phase) + quizBonus(phase)) * 0.15);
 }
 
 /** Topic completion bonus (all problems solved), scaled by phase. */
@@ -254,6 +259,7 @@ export async function totalPossibleCoins(classId: string): Promise<{
   breakdown: {
     practice: number;
     quizBonuses: number;
+    deepDiveBonuses: number;
     topicBonuses: number;
     testTopicBonuses: number;
     testPhaseBonuses: number;
@@ -282,6 +288,7 @@ export async function totalPossibleCoins(classId: string): Promise<{
 
   let practice = 0;
   let quizBonuses = 0;
+  let deepDiveBonuses = 0;
   let topicBonuses = 0;
   let testTopicBonuses = 0;
   let testPhaseBonuses = 0;
@@ -294,28 +301,27 @@ export async function totalPossibleCoins(classId: string): Promise<{
 
     for (const lesson of topic.lessons) {
       practice += lesson.coinableCount ?? maxPracticeCoins(phase);
-      // Every lesson assumed to have a quiz
       quizBonuses += quizBonus(phase);
+      deepDiveBonuses += deepDiveBonus(phase);
     }
     topicBonuses += topicBonus(phase);
-    // Every topic assumed to have a test
     testTopicBonuses += testTopicBonus(phase);
   }
 
-  // Every phase with topics assumed to have a test
   for (const phase of phases) {
     if (phasesWithTopics.has(phase)) {
       testPhaseBonuses += testPhaseBonus(phase);
     }
   }
 
-  const grandTotal = practice + quizBonuses + topicBonuses + testTopicBonuses + testPhaseBonuses + FINAL_TEST_BONUS;
+  const grandTotal = practice + quizBonuses + deepDiveBonuses + topicBonuses + testTopicBonuses + testPhaseBonuses + FINAL_TEST_BONUS;
 
   return {
     grandTotal,
     breakdown: {
       practice,
       quizBonuses,
+      deepDiveBonuses,
       topicBonuses,
       testTopicBonuses,
       testPhaseBonuses,

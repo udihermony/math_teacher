@@ -10,6 +10,10 @@ const updateLessonSchema = z.object({
   order: z.number().int().optional(),
   xpReward: z.number().int().optional(),
   coinableCount: z.number().int().min(0).nullable().optional(),
+  deepDive: z.object({
+    blocks: z.array(z.record(z.string(), z.unknown())),
+    quiz: z.array(z.record(z.string(), z.unknown())),
+  }).nullable().optional(),
 });
 
 export async function GET(
