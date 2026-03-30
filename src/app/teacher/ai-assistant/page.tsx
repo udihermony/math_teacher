@@ -14,6 +14,7 @@ import {
   Upload,
   Save,
   Loader2,
+  ClipboardCopy,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
 import { FileUploader, UploadedFile } from "@/modules/teacher/components/FileUploader";
@@ -59,6 +60,7 @@ function AIAssistantInner() {
   const [mode, setMode] = useState<Mode>("chat");
   const [saving, setSaving] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+  const [promptCopied, setPromptCopied] = useState(false);
 
   // Generate lesson form state
   const [genTopic, setGenTopic] = useState("");
@@ -286,6 +288,43 @@ function AIAssistantInner() {
       },
       `Synthesize lesson from uploaded file: ${uploadedFile.name} for ${synthPhase}`
     );
+  }
+
+  async function copyPrompt(url: string, body: Record<string, unknown>) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...body, promptOnly: true }),
+      });
+      if (!res.ok) throw new Error("Failed to get prompt");
+      const data = await res.json();
+      await navigator.clipboard.writeText(data.fullPrompt);
+      setPromptCopied(true);
+      setTimeout(() => setPromptCopied(false), 2000);
+    } catch {
+      alert("Failed to copy prompt");
+    }
+  }
+
+  function copyLessonPrompt() {
+    if (!genTopic) return;
+    copyPrompt("/api/ai/generate-lesson", {
+      topic: genTopic,
+      phase: genPhase,
+      additionalInstructions: genInstructions || undefined,
+    });
+  }
+
+  function copyProblemsPrompt() {
+    if (!probTopic) return;
+    copyPrompt("/api/ai/generate-problems", {
+      topic: probTopic,
+      phase: probPhase,
+      count: probCount,
+      difficultyMin: probDiffMin,
+      difficultyMax: probDiffMax,
+    });
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -580,13 +619,24 @@ function AIAssistantInner() {
                 placeholder="Additional instructions (optional)"
                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
               />
-              <button
-                onClick={handleGenerateLesson}
-                disabled={!genTopic || isStreaming}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-              >
-                {isStreaming ? "Generating..." : "Generate Lesson"}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleGenerateLesson}
+                  disabled={!genTopic || isStreaming}
+                  className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                >
+                  {isStreaming ? "Generating..." : "Generate Lesson"}
+                </button>
+                <button
+                  onClick={copyLessonPrompt}
+                  disabled={!genTopic}
+                  className="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-secondary disabled:opacity-50"
+                  title="Copy the full AI prompt to clipboard for use with an external LLM"
+                >
+                  {promptCopied ? <Check size={14} /> : <ClipboardCopy size={14} />}
+                  {promptCopied ? "Copied!" : "Copy Prompt"}
+                </button>
+              </div>
             </div>
           )}
 
@@ -650,13 +700,24 @@ function AIAssistantInner() {
                   <option value="ASSIGNMENT">Assignment (teacher assigns only)</option>
                 </select>
               </div>
-              <button
-                onClick={handleGenerateProblems}
-                disabled={!probTopic || isStreaming}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-              >
-                {isStreaming ? "Generating..." : `Generate ${probCount} Problems`}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleGenerateProblems}
+                  disabled={!probTopic || isStreaming}
+                  className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                >
+                  {isStreaming ? "Generating..." : `Generate ${probCount} Problems`}
+                </button>
+                <button
+                  onClick={copyProblemsPrompt}
+                  disabled={!probTopic}
+                  className="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-secondary disabled:opacity-50"
+                  title="Copy the full AI prompt to clipboard for use with an external LLM"
+                >
+                  {promptCopied ? <Check size={14} /> : <ClipboardCopy size={14} />}
+                  {promptCopied ? "Copied!" : "Copy Prompt"}
+                </button>
+              </div>
             </div>
           )}
 

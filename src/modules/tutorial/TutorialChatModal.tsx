@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { X, Send, Check, Loader2, RotateCcw, Code, Eye, Copy, Trash2, ChevronUp, ChevronDown, Plus } from "lucide-react";
+import { X, Send, Check, Loader2, RotateCcw, Code, Eye, Copy, Trash2, ChevronUp, ChevronDown, Plus, ClipboardCopy } from "lucide-react";
 import { TutorialRenderer } from "./TutorialRenderer";
 import type { TutorialBlock, TutorialData } from "./types";
 
@@ -31,6 +31,7 @@ export function TutorialChatModal({ lessonId, lessonTitle, existingTutorial, onC
   const [previewMode, setPreviewMode] = useState<"visual" | "blocks">("visual");
   const [editingBlock, setEditingBlock] = useState<number | null>(null);
   const [blockJson, setBlockJson] = useState("");
+  const [promptCopied, setPromptCopied] = useState(false);
 
   // Auto-generate on first open, or seed with existing tutorial
   useEffect(() => {
@@ -156,6 +157,27 @@ export function TutorialChatModal({ lessonId, lessonTitle, existingTutorial, onC
     }
   }
 
+  async function handleCopyPrompt() {
+    try {
+      const currentMessages = messages.length > 0
+        ? messages.map((m) => ({ role: m.role, content: m.content }))
+        : [{ role: "user" as const, content: "Generate a tutorial for this lesson." }];
+
+      const res = await fetch("/api/ai/tutorial", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lessonId, messages: currentMessages, promptOnly: true }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      await navigator.clipboard.writeText(data.fullPrompt);
+      setPromptCopied(true);
+      setTimeout(() => setPromptCopied(false), 2000);
+    } catch {
+      setError("Failed to copy prompt");
+    }
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!input.trim() || streaming) return;
@@ -172,6 +194,14 @@ export function TutorialChatModal({ lessonId, lessonTitle, existingTutorial, onC
             <p className="text-xs text-muted-foreground">{lessonTitle}</p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleCopyPrompt}
+              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary"
+              title="Copy the full AI prompt for use with an external LLM"
+            >
+              {promptCopied ? <Check size={14} /> : <ClipboardCopy size={14} />}
+              {promptCopied ? "Copied!" : "Copy Prompt"}
+            </button>
             {preview.length > 0 && (
               <button
                 onClick={handleSave}

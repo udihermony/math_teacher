@@ -24,6 +24,21 @@ export async function POST(request: NextRequest) {
 
   const systemPrompt = buildLessonGeneratorPrompt(parsed.data);
 
+  const userMessage = `Generate a complete lesson on "${parsed.data.topic}" for the ${parsed.data.phase} phase.${
+    parsed.data.additionalInstructions
+      ? ` Additional notes: ${parsed.data.additionalInstructions}`
+      : ""
+  }`;
+
+  // Return prompt only (for copying to external LLM)
+  if (body.promptOnly) {
+    return Response.json({
+      systemPrompt,
+      userMessage,
+      fullPrompt: `${systemPrompt}\n\n---\n\nUser: ${userMessage}`,
+    });
+  }
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
@@ -34,14 +49,10 @@ export async function POST(request: NextRequest) {
           messages: [
             {
               role: "user",
-              content: `Generate a complete lesson on "${parsed.data.topic}" for the ${parsed.data.phase} phase.${
-                parsed.data.additionalInstructions
-                  ? ` Additional notes: ${parsed.data.additionalInstructions}`
-                  : ""
-              }`,
+              content: userMessage,
             },
           ],
-          maxTokens: 4096,
+          maxTokens: 8192,
         });
 
         for await (const chunk of generator) {

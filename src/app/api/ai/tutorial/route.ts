@@ -54,6 +54,18 @@ export async function POST(request: NextRequest) {
     skills: lesson.topic.skills.map((s) => s.name),
   });
 
+  // Return prompt only (for copying to external LLM)
+  if (body.promptOnly) {
+    const userMessage = parsed.data.messages.length > 0
+      ? parsed.data.messages.map((m) => `${m.role}: ${m.content}`).join("\n")
+      : "Generate a tutorial for this lesson.";
+    return Response.json({
+      systemPrompt,
+      userMessage,
+      fullPrompt: `${systemPrompt}\n\n---\n\n${userMessage}`,
+    });
+  }
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {

@@ -92,6 +92,15 @@ export async function POST(request: NextRequest) {
     ? `Generate ${parsed.data.count} ${parsed.data.topic} problems for the ${parsed.data.phase} phase, difficulty ${parsed.data.difficultyMin}-${parsed.data.difficultyMax}.\n\n${lessonContext}`
     : `Generate ${parsed.data.count} ${parsed.data.topic} problems for the ${parsed.data.phase} phase, difficulty ${parsed.data.difficultyMin}-${parsed.data.difficultyMax}.`;
 
+  // Return prompt only (for copying to external LLM)
+  if (body.promptOnly) {
+    return Response.json({
+      systemPrompt,
+      userMessage,
+      fullPrompt: `${systemPrompt}\n\n---\n\nUser: ${userMessage}`,
+    });
+  }
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
@@ -105,7 +114,7 @@ export async function POST(request: NextRequest) {
               content: userMessage,
             },
           ],
-          maxTokens: 4096,
+          maxTokens: 8192,
         });
 
         for await (const chunk of generator) {
