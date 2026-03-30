@@ -21,7 +21,8 @@ const PHASE_MULTIPLIER: Record<string, number> = {
 export function coinsForDifficulty(difficulty: number): number {
   if (difficulty <= 3) return 1;
   if (difficulty <= 6) return 2;
-  return 3; // 7-10
+  if (difficulty <= 8) return 3;
+  return 5; // 9-10
 }
 
 /** Max practice coins earnable for a lesson, scaled by phase. */
@@ -30,32 +31,32 @@ export function maxPracticeCoins(phase: string): number {
   return Math.round(10 * mult);
 }
 
-/** Quiz completion bonus, scaled by phase. */
+/** Lesson quiz completion bonus, scaled by phase. Every lesson assumed to have one. */
 export function quizBonus(phase: string): number {
   const mult = PHASE_MULTIPLIER[phase] ?? 1;
-  return Math.round(5 * mult);
+  return Math.round(15 * mult);
 }
 
-/** Topic completion bonus, scaled by phase. */
+/** Topic completion bonus (all problems solved), scaled by phase. */
 export function topicBonus(phase: string): number {
   const mult = PHASE_MULTIPLIER[phase] ?? 1;
-  return Math.round(15 * mult);
+  return Math.round(20 * mult);
 }
 
 /** Bonus for passing a topic-scope test, scaled by phase. */
 export function testTopicBonus(phase: string): number {
   const mult = PHASE_MULTIPLIER[phase] ?? 1;
-  return Math.round(10 * mult);
+  return Math.round(50 * mult);
 }
 
 /** Bonus for passing a phase-scope test, scaled by phase. */
 export function testPhaseBonus(phase: string): number {
   const mult = PHASE_MULTIPLIER[phase] ?? 1;
-  return Math.round(25 * mult);
+  return Math.round(100 * mult);
 }
 
 /** Fixed bonus for the final test. */
-export const FINAL_TEST_BONUS = 50;
+export const FINAL_TEST_BONUS = 200;
 
 /**
  * Award coins for a correct answer, scaled by difficulty.
@@ -245,7 +246,8 @@ export async function getCoinsEarnedForLesson(
 
 /**
  * Calculate total possible coins for a class.
- * Deterministic — every coin source has a cap, so the result is exact.
+ * Deterministic — assumes every lesson has a quiz, every topic has a test,
+ * and every phase has a test. No need to check assignments.
  */
 export async function totalPossibleCoins(classId: string): Promise<{
   grandTotal: number;
@@ -273,14 +275,7 @@ export async function totalPossibleCoins(classId: string): Promise<{
     where: { phase: { in: phases as never } },
     include: {
       lessons: {
-        select: {
-          id: true,
-          coinableCount: true,
-          assignments: {
-            where: { classId },
-            select: { id: true },
-          },
-        },
+        select: { id: true, coinableCount: true },
       },
     },
   });
@@ -299,14 +294,15 @@ export async function totalPossibleCoins(classId: string): Promise<{
 
     for (const lesson of topic.lessons) {
       practice += lesson.coinableCount ?? maxPracticeCoins(phase);
-      if (lesson.assignments.length > 0) {
-        quizBonuses += quizBonus(phase);
-      }
+      // Every lesson assumed to have a quiz
+      quizBonuses += quizBonus(phase);
     }
     topicBonuses += topicBonus(phase);
+    // Every topic assumed to have a test
     testTopicBonuses += testTopicBonus(phase);
   }
 
+  // Every phase with topics assumed to have a test
   for (const phase of phases) {
     if (phasesWithTopics.has(phase)) {
       testPhaseBonuses += testPhaseBonus(phase);

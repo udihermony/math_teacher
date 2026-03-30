@@ -220,8 +220,8 @@ export async function GET() {
     const topicData = phaseTopics.map((topic) => {
       const lessons = topic.lessons.map((lesson) => {
         const maxPractice = lesson.coinableCount ?? maxPracticeCoins(phase);
-        const hasAssignment = lesson.assignments.length > 0;
-        const maxQuiz = hasAssignment ? quizBonus(phase) : 0;
+        // Every lesson assumed to have a quiz
+        const maxQuiz = quizBonus(phase);
 
         // Find earned practice coins for this lesson
         const practiceEarned = coinTransactions
