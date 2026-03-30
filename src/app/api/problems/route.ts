@@ -54,8 +54,8 @@ export async function GET(request: NextRequest) {
       // Get recommended difficulty
       difficultyInfo = await recommendDifficulty(session.user.id);
 
-      // Override difficulty filter with adaptive range
-      if (!difficulty) {
+      // Override difficulty filter with adaptive range (only for topic/phase browsing, not specific lessons)
+      if (!difficulty && !lessonId) {
         where.difficulty = {
           gte: difficultyInfo.minDifficulty,
           lte: difficultyInfo.maxDifficulty,
