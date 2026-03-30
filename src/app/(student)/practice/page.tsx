@@ -13,6 +13,7 @@ import {
   ClipboardList,
   RotateCcw,
   Loader2,
+  BookOpen,
 } from "lucide-react";
 import { ProblemRenderer } from "@/modules/problems";
 import { useProblem } from "@/modules/problems/hooks/useProblem";
@@ -23,7 +24,15 @@ import { LevelUpModal } from "@/modules/gamification/components/LevelUpModal";
 import { XPBar } from "@/modules/gamification/components/XPBar";
 import { StreakCounter } from "@/modules/gamification/components/StreakCounter";
 import { TopicBrowser } from "./TopicBrowser";
+import { TutorialPopup } from "@/modules/tutorial/TutorialPopup";
 import type { BadgeDefinition } from "@/modules/gamification/badge-definitions";
+
+function difficultyStyles(d: number): { solid: string; faded: string; ring: string } {
+  if (d <= 3) return { solid: "bg-green-500 text-white", faded: "bg-green-500/25 text-green-800 dark:text-green-300 hover:bg-green-500/40", ring: "ring-green-500" };
+  if (d <= 6) return { solid: "bg-yellow-500 text-white", faded: "bg-yellow-500/25 text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/40", ring: "ring-yellow-500" };
+  if (d <= 8) return { solid: "bg-orange-500 text-white", faded: "bg-orange-500/25 text-orange-800 dark:text-orange-300 hover:bg-orange-500/40", ring: "ring-orange-500" };
+  return { solid: "bg-red-500 text-white", faded: "bg-red-500/25 text-red-800 dark:text-red-300 hover:bg-red-500/40", ring: "ring-red-500" };
+}
 
 interface ProblemData {
   id: string;
@@ -86,6 +95,7 @@ function PracticeInner() {
   const [currentStreak, setCurrentStreak] = useState({ streak: 0, isActiveToday: false });
   const [coinBalance, setCoinBalance] = useState(0);
   const [lastCoinsEarned, setLastCoinsEarned] = useState(0);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // Set lesson context for companion chat persistence
   useEffect(() => {
@@ -261,6 +271,10 @@ function PracticeInner() {
         onClose={() => setShowLevelUp(false)}
       />
 
+      {showTutorial && lessonId && (
+        <TutorialPopup lessonId={lessonId} onClose={() => setShowTutorial(false)} />
+      )}
+
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -315,24 +329,25 @@ function PracticeInner() {
         <XPBar level={currentXP.level} xp={currentXP.xp} progress={currentXP.progress} xpToNext={currentXP.xpToNext} compact />
       </div>
 
-      {/* Practice mode: clickable dots with solved indicators */}
+      {/* Practice mode: clickable dots with difficulty colors and solved indicators */}
       {!isQuizMode && (
         <div className="mb-6 flex items-center gap-1 overflow-x-auto py-1">
           {problemQueue.map((p, i) => {
             const isSolved = solvedIds.has(p.id);
             const isCurrent = i === queueIndex;
+            const ds = difficultyStyles(p.difficulty);
             return (
               <button
                 key={p.id}
                 onClick={() => goToProblem(i)}
                 className={`relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold transition-all ${
                   isCurrent
-                    ? "ring-2 ring-primary ring-offset-1 bg-primary text-primary-foreground"
+                    ? `ring-2 ${ds.ring} ring-offset-1 ${ds.solid}`
                     : isSolved
                     ? "bg-green-500 text-white"
-                    : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                    : ds.faded
                 }`}
-                title={isSolved ? `Q${i + 1} — Solved` : `Q${i + 1}`}
+                title={`Q${i + 1} — Difficulty ${p.difficulty}${isSolved ? " (Solved)" : ""}`}
               >
                 {isSolved && !isCurrent ? (
                   <Check size={12} strokeWidth={3} />
@@ -391,7 +406,7 @@ function PracticeInner() {
             transition={{ duration: 0.2 }}
             className="rounded-xl border border-border bg-card p-6"
           >
-            {/* Difficulty indicator */}
+            {/* Difficulty indicator + Tutorial button */}
             <div className="mb-4 flex items-center gap-2">
               <span className="text-xs text-muted-foreground">Difficulty:</span>
               <div className="flex gap-0.5">
@@ -399,7 +414,7 @@ function PracticeInner() {
                   <div
                     key={i}
                     className={`h-1.5 w-3 rounded-full ${
-                      i < problem.difficulty ? "bg-primary" : "bg-secondary"
+                      i < problem.difficulty ? difficultyStyles(problem.difficulty).solid.split(" ")[0] : "bg-secondary"
                     }`}
                   />
                 ))}
@@ -409,6 +424,16 @@ function PracticeInner() {
                   {s.skill.name}
                 </Badge>
               ))}
+              {lessonId && (
+                <button
+                  onClick={() => setShowTutorial(true)}
+                  className="ml-auto flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                  title="Open lesson tutorial"
+                >
+                  <BookOpen size={13} />
+                  Tutorial
+                </button>
+              )}
             </div>
 
             <ProblemRenderer
