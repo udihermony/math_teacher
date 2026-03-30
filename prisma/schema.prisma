@@ -84,14 +84,22 @@ enum TestRequestStatus {
 
 // ── Users ──────────────────────────────────────────────
 
+enum AIProvider {
+  ANTHROPIC
+  OPENAI
+  GEMINI
+}
+
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String      @id @default(cuid())
+  email        String      @unique
   name         String
-  role         Role     @default(STUDENT)
+  role         Role        @default(STUDENT)
   passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  aiProvider   AIProvider?
+  aiApiKey     String?     // encrypted per-user API key
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   studentProfile StudentProfile?
   submissions    Submission[]

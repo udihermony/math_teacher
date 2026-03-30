@@ -1,24 +1,54 @@
 import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
+import { prisma } from "@/lib/db";
+import { decrypt } from "@/lib/crypto";
 
 // Server-only — never import this on the client
 if (typeof window !== "undefined") {
   throw new Error("claude-client.ts must only be used on the server");
 }
 
-let client: Anthropic | null = null;
+// ── Default (platform) Anthropic client ──────────────────
 
-function getClient(): Anthropic {
-  if (!client) {
+let defaultClient: Anthropic | null = null;
+
+function getDefaultClient(): Anthropic {
+  if (!defaultClient) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       throw new Error("ANTHROPIC_API_KEY environment variable is not set");
     }
-    client = new Anthropic({ apiKey });
+    defaultClient = new Anthropic({ apiKey });
   }
-  return client;
+  return defaultClient;
 }
 
-// Simple in-memory rate limiter
+// ── Per-user provider resolution ─────────────────────────
+
+interface UserAIConfig {
+  provider: "ANTHROPIC" | "OPENAI" | "GEMINI";
+  apiKey: string;
+}
+
+async function getUserAIConfig(userId: string): Promise<UserAIConfig | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { aiProvider: true, aiApiKey: true },
+  });
+
+  if (!user?.aiProvider || !user?.aiApiKey) return null;
+
+  try {
+    const decryptedKey = decrypt(user.aiApiKey);
+    return { provider: user.aiProvider, apiKey: decryptedKey };
+  } catch {
+    return null;
+  }
+}
+
+// ── Rate limiter ─────────────────────────────────────────
+
 const rateLimiter = {
   requests: new Map<string, number[]>(),
   maxRequests: 20,
@@ -39,6 +69,8 @@ const rateLimiter = {
   },
 };
 
+// ── Shared types ─────────────────────────────────────────
+
 export interface AskOptions {
   userId: string;
   systemPrompt: string;
@@ -51,6 +83,90 @@ export interface AIResponse {
   usage: { inputTokens: number; outputTokens: number };
 }
 
+// ── OpenAI adapter ───────────────────────────────────────
+
+async function askOpenAI(
+  apiKey: string,
+  systemPrompt: string,
+  messages: { role: "user" | "assistant"; content: string }[],
+  maxTokens: number
+): Promise<AIResponse> {
+  const client = new OpenAI({ apiKey });
+  const response = await client.chat.completions.create({
+    model: "gpt-4o",
+    max_tokens: maxTokens,
+    messages: [
+      { role: "system", content: systemPrompt },
+      ...messages,
+    ],
+  });
+
+  return {
+    content: response.choices[0]?.message?.content ?? "",
+    usage: {
+      inputTokens: response.usage?.prompt_tokens ?? 0,
+      outputTokens: response.usage?.completion_tokens ?? 0,
+    },
+  };
+}
+
+async function* streamOpenAI(
+  apiKey: string,
+  systemPrompt: string,
+  messages: { role: "user" | "assistant"; content: string }[],
+  maxTokens: number
+): AsyncGenerator<string> {
+  const client = new OpenAI({ apiKey });
+  const stream = await client.chat.completions.create({
+    model: "gpt-4o",
+    max_tokens: maxTokens,
+    stream: true,
+    messages: [
+      { role: "system", content: systemPrompt },
+      ...messages,
+    ],
+  });
+
+  for await (const chunk of stream) {
+    const delta = chunk.choices[0]?.delta?.content;
+    if (delta) yield delta;
+  }
+}
+
+// ── Gemini adapter ───────────────────────────────────────
+
+async function askGemini(
+  apiKey: string,
+  systemPrompt: string,
+  messages: { role: "user" | "assistant"; content: string }[],
+  maxTokens: number
+): Promise<AIResponse> {
+  const ai = new GoogleGenAI({ apiKey });
+  const contents = messages.map((m) => ({
+    role: m.role === "assistant" ? ("model" as const) : ("user" as const),
+    parts: [{ text: m.content }],
+  }));
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    config: {
+      systemInstruction: systemPrompt,
+      maxOutputTokens: maxTokens,
+    },
+    contents,
+  });
+
+  return {
+    content: response.text ?? "",
+    usage: {
+      inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
+      outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+    },
+  };
+}
+
+// ── Main exported functions ──────────────────────────────
+
 export async function askClaude({
   userId,
   systemPrompt,
@@ -60,10 +176,22 @@ export async function askClaude({
   if (!rateLimiter.check(userId)) {
     throw new Error("Rate limit exceeded. Please wait a moment.");
   }
-
   rateLimiter.record(userId);
 
-  const anthropic = getClient();
+  const config = await getUserAIConfig(userId);
+
+  if (config?.provider === "OPENAI") {
+    return askOpenAI(config.apiKey, systemPrompt, messages, maxTokens);
+  }
+
+  if (config?.provider === "GEMINI") {
+    return askGemini(config.apiKey, systemPrompt, messages, maxTokens);
+  }
+
+  // Anthropic (user key or default)
+  const anthropic = config?.provider === "ANTHROPIC"
+    ? new Anthropic({ apiKey: config.apiKey })
+    : getDefaultClient();
 
   const response = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
@@ -101,10 +229,13 @@ export async function agentClaude({
   if (!rateLimiter.check(userId)) {
     throw new Error("Rate limit exceeded. Please wait a moment.");
   }
-
   rateLimiter.record(userId);
 
-  const anthropic = getClient();
+  // Agent/tool calls only supported with Anthropic
+  const config = await getUserAIConfig(userId);
+  const anthropic = config?.provider === "ANTHROPIC"
+    ? new Anthropic({ apiKey: config.apiKey })
+    : getDefaultClient();
 
   return anthropic.messages.create({
     model: "claude-sonnet-4-6",
@@ -117,7 +248,6 @@ export async function agentClaude({
 
 /**
  * Research-mode call: uses web search + extended thinking for deep research.
- * Returns the final text content from the response.
  */
 export async function researchClaude({
   userId,
@@ -128,10 +258,13 @@ export async function researchClaude({
   if (!rateLimiter.check(userId)) {
     throw new Error("Rate limit exceeded. Please wait a moment.");
   }
-
   rateLimiter.record(userId);
 
-  const anthropic = getClient();
+  // Research mode only supported with Anthropic
+  const config = await getUserAIConfig(userId);
+  const anthropic = config?.provider === "ANTHROPIC"
+    ? new Anthropic({ apiKey: config.apiKey })
+    : getDefaultClient();
 
   const response = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
@@ -151,7 +284,6 @@ export async function researchClaude({
     ],
   });
 
-  // Extract all text blocks from the response (skip thinking/tool blocks)
   const textParts = response.content
     .filter((c): c is Anthropic.TextBlock => c.type === "text")
     .map((c) => c.text);
@@ -174,10 +306,27 @@ export async function* streamClaude({
   if (!rateLimiter.check(userId)) {
     throw new Error("Rate limit exceeded. Please wait a moment.");
   }
-
   rateLimiter.record(userId);
 
-  const anthropic = getClient();
+  const config = await getUserAIConfig(userId);
+
+  if (config?.provider === "OPENAI") {
+    yield* streamOpenAI(config.apiKey, systemPrompt, messages, maxTokens);
+    return;
+  }
+
+  if (config?.provider === "GEMINI") {
+    // Gemini doesn't have a clean streaming API in the same pattern,
+    // fall back to non-streaming and yield the full result
+    const result = await askGemini(config.apiKey, systemPrompt, messages, maxTokens);
+    yield result.content;
+    return;
+  }
+
+  // Anthropic (user key or default)
+  const anthropic = config?.provider === "ANTHROPIC"
+    ? new Anthropic({ apiKey: config.apiKey })
+    : getDefaultClient();
 
   const stream = anthropic.messages.stream({
     model: "claude-sonnet-4-6",
