@@ -19,6 +19,7 @@ import {
   BellRing,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
+import { FINAL_TEST_BONUS } from "@/modules/gamification/coin-calculator";
 import { TutorialPopup } from "@/modules/tutorial/TutorialPopup";
 import { DeepDivePopup } from "@/modules/deep-dive/DeepDivePopup";
 
@@ -253,7 +254,7 @@ export function QuestRoad() {
 function FinalTestNode({ finalTest }: { finalTest?: QuestData["finalTest"] }) {
   const unlocked = finalTest?.unlocked ?? false;
   const completed = finalTest?.completed ?? false;
-  const bonus = finalTest?.coins ?? 50;
+  const bonus = finalTest?.coins ?? FINAL_TEST_BONUS;
 
   return (
     <div className="relative flex items-center gap-4 pl-0">

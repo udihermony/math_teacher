@@ -36,20 +36,17 @@ function TutorialBlockRenderer({ block }: { block: TutorialBlock }) {
 }
 
 function LatexBlock({ content }: { content: string }) {
-  try {
-    const html = katex.renderToString(content, {
-      displayMode: true,
-      throwOnError: false,
-    });
-    return (
-      <div
-        className="overflow-x-auto py-2 text-center"
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
-    );
-  } catch {
+  const html = renderKatex(content, true);
+  if (!html) {
     return <pre className="text-sm text-red-500">{content}</pre>;
   }
+
+  return (
+    <div
+      className="overflow-x-auto py-2 text-center"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 }
 
 function TextBlock({ content }: { content: string }) {
@@ -57,37 +54,29 @@ function TextBlock({ content }: { content: string }) {
   const segments = splitLatex(content);
 
   return (
-    <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed">
+    <div className="max-w-none text-sm leading-relaxed text-slate-900 dark:text-slate-100">
       {segments.map((seg, i) => {
         if (seg.type === "display-latex") {
-          try {
-            const html = katex.renderToString(seg.value, {
-              displayMode: true,
-              throwOnError: false,
-            });
-            return (
-              <div
-                key={i}
-                className="overflow-x-auto py-1 text-center"
-                dangerouslySetInnerHTML={{ __html: html }}
-              />
-            );
-          } catch {
+          const html = renderKatex(seg.value, true);
+          if (!html) {
             return <code key={i}>{seg.value}</code>;
           }
+          return (
+            <div
+              key={i}
+              className="overflow-x-auto py-1 text-center"
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          );
         }
         if (seg.type === "inline-latex") {
-          try {
-            const html = katex.renderToString(seg.value, {
-              displayMode: false,
-              throwOnError: false,
-            });
-            return (
-              <span key={i} dangerouslySetInnerHTML={{ __html: html }} />
-            );
-          } catch {
+          const html = renderKatex(seg.value, false);
+          if (!html) {
             return <code key={i}>{seg.value}</code>;
           }
+          return (
+            <span key={i} dangerouslySetInnerHTML={{ __html: html }} />
+          );
         }
         // Plain text — render with markdown-like formatting
         return <TextSpan key={i} text={seg.value} />;
@@ -104,22 +93,22 @@ function TextSpan({ text }: { text: string }) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (line.startsWith("### ")) {
-      elements.push(<h3 key={i} className="mt-3 mb-1 text-base font-semibold">{formatBold(line.slice(4))}</h3>);
+      elements.push(<h3 key={i} className="mt-3 mb-1 text-base font-semibold text-slate-950 dark:text-slate-50">{formatBold(line.slice(4))}</h3>);
     } else if (line.startsWith("## ")) {
-      elements.push(<h2 key={i} className="mt-4 mb-1 text-lg font-bold">{formatBold(line.slice(3))}</h2>);
+      elements.push(<h2 key={i} className="mt-4 mb-1 text-lg font-bold text-slate-950 dark:text-slate-50">{formatBold(line.slice(3))}</h2>);
     } else if (line.startsWith("# ")) {
-      elements.push(<h1 key={i} className="mt-4 mb-2 text-xl font-bold">{formatBold(line.slice(2))}</h1>);
+      elements.push(<h1 key={i} className="mt-4 mb-2 text-xl font-bold text-slate-950 dark:text-slate-50">{formatBold(line.slice(2))}</h1>);
     } else if (line.startsWith("- ") || line.startsWith("* ")) {
       elements.push(
         <div key={i} className="ml-4 flex gap-2">
-          <span className="text-muted-foreground">•</span>
+          <span className="text-slate-500 dark:text-slate-400">•</span>
           <span>{formatBold(line.slice(2))}</span>
         </div>
       );
     } else if (line.trim() === "") {
       elements.push(<div key={i} className="h-2" />);
     } else {
-      elements.push(<p key={i} className="my-0.5">{formatBold(line)}</p>);
+      elements.push(<p key={i} className="my-0.5 text-slate-900 dark:text-slate-100">{formatBold(line)}</p>);
     }
   }
 
@@ -191,4 +180,15 @@ function findSingleDollar(text: string, startFrom = 0): number {
     }
   }
   return -1;
+}
+
+function renderKatex(content: string, displayMode: boolean): string | null {
+  try {
+    return katex.renderToString(content, {
+      displayMode,
+      throwOnError: false,
+    });
+  } catch {
+    return null;
+  }
 }

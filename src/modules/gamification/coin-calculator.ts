@@ -61,7 +61,7 @@ export function testPhaseBonus(phase: string): number {
 }
 
 /** Fixed bonus for the final test. */
-export const FINAL_TEST_BONUS = 200;
+export const FINAL_TEST_BONUS = 2000;
 
 /**
  * Award coins for a correct answer, scaled by difficulty.
