@@ -83,10 +83,11 @@ export async function POST(request: NextRequest) {
     // Create associated problems
     let problemCount = 0;
     if (data.problems && data.problems.length > 0) {
-      for (const p of data.problems) {
+      for (let i = 0; i < data.problems.length; i++) {
+        const p = data.problems[i];
         const validated = validateProblemContent(p.type, p.content);
         if (!validated.ok) {
-          return Response.json({ error: validated.error }, { status: 400 });
+          return Response.json({ error: `Problem ${i + 1}: ${validated.error}` }, { status: 400 });
         }
         await prisma.problem.create({
           data: {
@@ -113,10 +114,11 @@ export async function POST(request: NextRequest) {
     const { lessonId, purpose, data } = parsed.data;
 
     const created = [];
-    for (const p of data) {
+    for (let i = 0; i < data.length; i++) {
+      const p = data[i];
       const validated = validateProblemContent(p.type, p.content);
       if (!validated.ok) {
-        return Response.json({ error: validated.error }, { status: 400 });
+        return Response.json({ error: `Problem ${i + 1}: ${validated.error}` }, { status: 400 });
       }
       const problem = await prisma.problem.create({
         data: {

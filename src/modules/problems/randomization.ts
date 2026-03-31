@@ -284,7 +284,46 @@ function instantiateRandomizedProblem(
     }
   }
 
-  throw new Error("Could not generate a valid randomized problem instance");
+  // Diagnose why we failed — check for always-identical option pairs
+  const optionTemplates =
+    randomization.optionTemplates ??
+    (Array.isArray(problem.content.options) ? (problem.content.options as string[]) : []);
+
+  if (optionTemplates.length >= 2) {
+    const alwaysIdentical: [number, number][] = [];
+    const sampleCount = 20;
+
+    for (let i = 0; i < optionTemplates.length; i++) {
+      for (let j = i + 1; j < optionTemplates.length; j++) {
+        let identicalCount = 0;
+        for (let s = 0; s < sampleCount; s++) {
+          try {
+            const rng = createRng(`__diag_${s}__`);
+            const vars = buildVariables(specs, rng);
+            const a = interpolateTemplate(optionTemplates[i], vars).trim();
+            const b = interpolateTemplate(optionTemplates[j], vars).trim();
+            if (a === b) identicalCount++;
+          } catch {
+            // skip failed samples
+          }
+        }
+        if (identicalCount === sampleCount) {
+          alwaysIdentical.push([i, j]);
+        }
+      }
+    }
+
+    if (alwaysIdentical.length > 0) {
+      const pairs = alwaysIdentical
+        .map(([i, j]) => `option ${i + 1} "${optionTemplates[i]}" and option ${j + 1} "${optionTemplates[j]}"`)
+        .join("; ");
+      throw new Error(
+        `Options are always identical: ${pairs}. Use algebraically different expressions for distractors.`
+      );
+    }
+  }
+
+  throw new Error("Could not generate a valid randomized problem instance after " + maxAttempts + " attempts. Add constraints to ensure options produce distinct values and constraints are satisfiable.");
 }
 
 export function getProblemRandomization(content: Record<string, unknown>): ProblemRandomization | null {
