@@ -9,6 +9,7 @@ Prefer RANDOMIZABLE templates when the mathematics allows the same skill to be t
 Each stored problem may include a concrete preview plus a \`randomization\` block that defines how fresh values are generated at runtime.
 
 Use \`{{ ... }}\` placeholders inside templates. Inside those placeholders, you may reference variables and arithmetic expressions such as \`{{a}}\`, \`{{b}}\`, \`{{a*x + b}}\`.
+Available math functions in expressions: abs(), floor(), ceil(), round(), sqrt(), min(), max(), pow(), sign(), and the constant PI. Example: \`{{abs(a - b)}}\`, \`{{max(a, b)}}\`.
 
 OUTPUT EXAMPLES:
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { instantiateProblem } from "./randomization";
 
 const variableSpecSchema = z.object({
   min: z.number().optional(),
@@ -168,6 +169,21 @@ export function validateProblemContent(
       return {
         ok: false,
         error: "Free input problems require correctAnswer or randomization.correctAnswerFormula",
+      };
+    }
+  }
+
+  // Trial instantiation: catch expression/template errors before saving
+  if (randomizationData?.variables && Object.keys(randomizationData.variables).length > 0) {
+    try {
+      instantiateProblem(
+        { type, content, solution: null },
+        "__validation_test__"
+      );
+    } catch (err) {
+      return {
+        ok: false,
+        error: `Randomization trial failed: ${err instanceof Error ? err.message : String(err)}`,
       };
     }
   }

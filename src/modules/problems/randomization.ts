@@ -22,6 +22,21 @@ interface InstantiatedProblem {
 
 const SAFE_EXPRESSION = /^[\dA-Za-z_+\-*/().,\s<>=!&|%]+$/;
 
+const MATH_FUNCTIONS: Record<string, number | ((...args: number[]) => number)> = {
+  abs: Math.abs,
+  floor: Math.floor,
+  ceil: Math.ceil,
+  round: Math.round,
+  sqrt: Math.sqrt,
+  min: Math.min,
+  max: Math.max,
+  pow: Math.pow,
+  sign: Math.sign,
+  PI: Math.PI,
+};
+
+const MATH_FUNCTION_NAMES = new Set(Object.keys(MATH_FUNCTIONS));
+
 function hashSeed(input: string): number {
   let hash = 2166136261;
   for (let i = 0; i < input.length; i++) {
@@ -58,14 +73,14 @@ function evaluateExpression(expression: string, variables: Record<string, number
 
   const identifiers = expression.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? [];
   for (const identifier of identifiers) {
-    if (!(identifier in variables)) {
+    if (!(identifier in variables) && !MATH_FUNCTION_NAMES.has(identifier)) {
       throw new Error(`Unknown identifier in expression: ${identifier}`);
     }
   }
 
-  const keys = Object.keys(variables);
-  const values = Object.values(variables);
-  return Function(...keys, `"use strict"; return (${expression});`)(...values) as unknown;
+  const allKeys = [...Object.keys(MATH_FUNCTIONS), ...Object.keys(variables)];
+  const allValues = [...Object.values(MATH_FUNCTIONS), ...Object.values(variables)];
+  return Function(...allKeys, `"use strict"; return (${expression});`)(...allValues) as unknown;
 }
 
 function evaluateNumericExpression(expression: string, variables: Record<string, number>): number {
