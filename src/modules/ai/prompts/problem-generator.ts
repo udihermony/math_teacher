@@ -10,6 +10,7 @@ Each stored problem may include a concrete preview plus a \`randomization\` bloc
 
 Use \`{{ ... }}\` placeholders inside templates. Inside those placeholders, you may reference variables and arithmetic expressions such as \`{{a}}\`, \`{{b}}\`, \`{{a*x + b}}\`.
 Available math functions in expressions: abs(), floor(), ceil(), round(), sqrt(), min(), max(), pow(), sign(), and the constant PI. Example: \`{{abs(a - b)}}\`, \`{{max(a, b)}}\`.
+Expressions are NUMERIC ONLY — no strings, no quotes, no concatenation. To display a fraction like "3/5", use separate placeholders in the template text: \`{{num}}/{{den}}\`, NOT \`{{num + '/' + den}}\`.
 
 OUTPUT EXAMPLES:
 
