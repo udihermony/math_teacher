@@ -104,10 +104,18 @@ RULES:
 11. Only omit \`content.randomization\` when the problem truly needs fixed values, proof, or a specific real-world data set.
 12. Output ONLY the JSON code block — no additional commentary.
 
-CRITICAL — randomization.variables rules:
+CRITICAL — randomization rules:
+
+Variables:
 - Every identifier used in \`{{ }}\` placeholders (in questionTemplate, optionTemplates, hintTemplates, solutionTemplates, correctAnswerFormula, and constraints) MUST be declared inside \`randomization.variables\`. There is no other place to declare them — no \`variables_extra\`, no top-level fields, nothing else. If a template uses \`{{target}}\`, then \`target\` must appear as a key in \`variables\` (e.g. with a \`formula\`).
 - Computed values (like a target answer) go in \`variables\` with a \`"formula"\` field, e.g. \`"target": { "formula": "(a + b) * c" }\`. Variables with formulas can reference previously declared variables.
-- The only recognized fields inside \`randomization\` are: \`variables\`, \`constraints\`, \`questionTemplate\`, \`optionTemplates\`, \`hintTemplates\`, \`solutionTemplates\`, \`correctAnswerFormula\`, \`correctIndex\`, \`correctIndices\`, \`enabled\`, \`maxAttempts\`. Do NOT invent other fields.`;
+- The only recognized fields inside \`randomization\` are: \`variables\`, \`constraints\`, \`questionTemplate\`, \`optionTemplates\`, \`hintTemplates\`, \`solutionTemplates\`, \`correctAnswerFormula\`, \`correctIndex\`, \`correctIndices\`, \`enabled\`, \`maxAttempts\`. Do NOT invent other fields.
+
+Option uniqueness (MULTIPLE_CHOICE / MULTI_SELECT):
+- All optionTemplates MUST produce distinct numeric values for most variable combinations. The engine retries up to 50 times and rejects any attempt where two options evaluate to the same value.
+- NEVER use options that are algebraically identical, e.g. \`{{a + b * c}}\` and \`{{a + (b * c)}}\` are always equal — this will always fail. Similarly \`{{x * 1}}\` equals \`{{x}}\`.
+- Design distractors using genuinely different expressions (wrong operation order, common sign errors, off-by-one, etc.).
+- Add constraints to prevent coincidental collisions, e.g. \`"a + b != a * b"\`, \`"a - b != a + b"\`.`;
 
 export function buildProblemGeneratorPrompt(params: {
   topic: string;

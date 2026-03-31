@@ -173,17 +173,30 @@ export function validateProblemContent(
     }
   }
 
-  // Trial instantiation: catch expression/template errors before saving
+  // Trial instantiation: try several seeds to catch expression errors and
+  // problems that can never produce distinct options.
   if (randomizationData?.variables && Object.keys(randomizationData.variables).length > 0) {
-    try {
-      instantiateProblem(
-        { type, content, solution: null },
-        "__validation_test__"
-      );
-    } catch (err) {
+    const seeds = ["__val_1__", "__val_2__", "__val_3__"];
+    let lastError: string | null = null;
+    let anySucceeded = false;
+
+    for (const seed of seeds) {
+      try {
+        instantiateProblem(
+          { type, content, solution: null },
+          seed
+        );
+        anySucceeded = true;
+        break;
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : String(err);
+      }
+    }
+
+    if (!anySucceeded && lastError) {
       return {
         ok: false,
-        error: `Randomization trial failed: ${err instanceof Error ? err.message : String(err)}`,
+        error: `Randomization trial failed: ${lastError}`,
       };
     }
   }
