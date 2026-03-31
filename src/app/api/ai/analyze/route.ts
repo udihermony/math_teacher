@@ -80,6 +80,12 @@ export async function POST(request: Request) {
       const correctIdx = renderedContent.correctIndex as number;
       studentAnswer = options?.[selectedIdx] ?? String(selectedIdx);
       correctAnswer = options?.[correctIdx] ?? String(correctIdx);
+    } else if (sub.problem.type === "MULTI_SELECT") {
+      const options = Array.isArray(renderedContent.options) ? (renderedContent.options as string[]) : [];
+      const selectedIndices = Array.isArray(answer.selectedIndices) ? (answer.selectedIndices as number[]) : [];
+      const correctIndices = Array.isArray(renderedContent.correctIndices) ? (renderedContent.correctIndices as number[]) : [];
+      studentAnswer = selectedIndices.map((idx) => options[idx] ?? String(idx)).join(", ") || "No answer";
+      correctAnswer = correctIndices.map((idx) => options[idx] ?? String(idx)).join(", ") || "Unknown";
     } else if (sub.problem.type === "FREE_INPUT") {
       studentAnswer = (answer.value as string) || "No answer";
       correctAnswer = (renderedContent.correctAnswer as string) || "Unknown";

@@ -5,7 +5,7 @@ import { requireTeacher } from "@/lib/teacher-auth";
 import { validateProblemContent } from "@/modules/problems/content-validation";
 
 const problemSchema = z.object({
-  type: z.enum(["MULTIPLE_CHOICE", "FREE_INPUT", "DRAG_AND_DROP", "GRAPHING", "PROOF_BUILDER", "WORKED_SOLUTION"]),
+  type: z.enum(["MULTIPLE_CHOICE", "MULTI_SELECT", "FREE_INPUT", "DRAG_AND_DROP", "GRAPHING", "PROOF_BUILDER", "WORKED_SOLUTION"]),
   difficulty: z.number().int().min(1).max(10),
   content: z.record(z.string(), z.unknown()),
   solution: z.record(z.string(), z.unknown()).optional(),

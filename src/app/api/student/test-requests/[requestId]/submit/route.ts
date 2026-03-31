@@ -61,6 +61,16 @@ export async function POST(
 
     if (problem.type === "MULTIPLE_CHOICE") {
       isCorrect = answer.selectedIndex != null && (answer.selectedIndex as number) === (content.correctIndex as number);
+    } else if (problem.type === "MULTI_SELECT") {
+      const selectedIndices = Array.isArray(answer.selectedIndices)
+        ? [...new Set((answer.selectedIndices as number[]).map(Number))].sort((a, b) => a - b)
+        : [];
+      const correctIndices = Array.isArray(content.correctIndices)
+        ? [...new Set((content.correctIndices as number[]).map(Number))].sort((a, b) => a - b)
+        : [];
+      isCorrect =
+        selectedIndices.length === correctIndices.length &&
+        selectedIndices.every((value, index) => value === correctIndices[index]);
     } else if (problem.type === "FREE_INPUT") {
       const studentAnswer = (answer.value as string) ?? "";
       const correctAnswer = (content.correctAnswer as string) ?? "";

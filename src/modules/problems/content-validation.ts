@@ -31,6 +31,7 @@ const randomizationSchema = z.object({
   solutionTemplates: z.array(z.string().min(1)).optional(),
   correctAnswerFormula: z.string().min(1).optional(),
   correctIndex: z.number().int().min(0).optional(),
+  correctIndices: z.array(z.number().int().min(0)).min(1).optional(),
   variables: z.record(z.string(), variableSpecSchema).optional(),
   constraints: z.array(z.string().min(1)).optional(),
   maxAttempts: z.number().int().min(1).max(500).optional(),
@@ -107,6 +108,50 @@ export function validateProblemContent(
       return {
         ok: false,
         error: "Multiple choice problems require a valid correctIndex",
+      };
+    }
+  }
+
+  if (type === "MULTI_SELECT") {
+    const staticOptions =
+      Array.isArray(content.options) &&
+      content.options.every((option) => typeof option === "string" && option.trim().length > 0)
+        ? (content.options as string[])
+        : null;
+    const randomizedOptions = randomizationData?.optionTemplates;
+    const options = randomizedOptions ?? staticOptions ?? null;
+    const correctIndices =
+      Array.isArray(content.correctIndices) &&
+      content.correctIndices.every((index) => typeof index === "number")
+        ? (content.correctIndices as number[])
+        : randomizationData?.correctIndices;
+
+    if (!options || options.length < 2) {
+      return {
+        ok: false,
+        error: "Multi select problems require options or randomization.optionTemplates",
+      };
+    }
+
+    if (!correctIndices || correctIndices.length === 0) {
+      return {
+        ok: false,
+        error: "Multi select problems require correctIndices or randomization.correctIndices",
+      };
+    }
+
+    const uniqueIndices = new Set(correctIndices);
+    if (uniqueIndices.size !== correctIndices.length) {
+      return {
+        ok: false,
+        error: "Multi select problems require unique correctIndices",
+      };
+    }
+
+    if (correctIndices.some((index) => index < 0 || index >= options.length)) {
+      return {
+        ok: false,
+        error: "Multi select problems require valid correctIndices",
       };
     }
   }

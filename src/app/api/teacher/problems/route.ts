@@ -6,7 +6,7 @@ import { validateProblemContent } from "@/modules/problems/content-validation";
 
 const createProblemSchema = z.object({
   lessonId: z.string().optional(),
-  type: z.enum(["MULTIPLE_CHOICE", "FREE_INPUT", "DRAG_AND_DROP", "GRAPHING", "PROOF_BUILDER", "WORKED_SOLUTION"]),
+  type: z.enum(["MULTIPLE_CHOICE", "MULTI_SELECT", "FREE_INPUT", "DRAG_AND_DROP", "GRAPHING", "PROOF_BUILDER", "WORKED_SOLUTION"]),
   difficulty: z.number().int().min(1).max(10),
   purpose: z.enum(["PRACTICE", "ASSIGNMENT"]).default("PRACTICE"),
   content: z.record(z.string(), z.unknown()),

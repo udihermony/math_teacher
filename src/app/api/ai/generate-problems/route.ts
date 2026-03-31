@@ -11,7 +11,7 @@ const schema = z.object({
   count: z.number().int().min(1).max(30),
   difficultyMin: z.number().int().min(1).max(10).default(1),
   difficultyMax: z.number().int().min(1).max(10).default(10),
-  types: z.array(z.enum(["MULTIPLE_CHOICE", "FREE_INPUT"])).optional(),
+  types: z.array(z.enum(["MULTIPLE_CHOICE", "MULTI_SELECT", "FREE_INPUT"])).optional(),
   additionalInstructions: z.string().optional(),
   lessonId: z.string().optional(),
 });

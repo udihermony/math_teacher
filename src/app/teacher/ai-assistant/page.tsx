@@ -331,7 +331,7 @@ function AIAssistantInner() {
   }
 
   function validateProblem(p: Record<string, unknown>, idx: number): string | null {
-    const VALID_TYPES = ["MULTIPLE_CHOICE", "FREE_INPUT", "DRAG_AND_DROP", "GRAPHING", "PROOF_BUILDER", "WORKED_SOLUTION"];
+    const VALID_TYPES = ["MULTIPLE_CHOICE", "MULTI_SELECT", "FREE_INPUT", "DRAG_AND_DROP", "GRAPHING", "PROOF_BUILDER", "WORKED_SOLUTION"];
     if (!p.type || !VALID_TYPES.includes(p.type as string)) {
       return `Problem #${idx + 1}: invalid or missing "type". Must be one of: ${VALID_TYPES.join(", ")}`;
     }
@@ -365,6 +365,22 @@ function AIAssistantInner() {
         typeof randomization?.correctIndex !== "number"
       ) {
         return `Problem #${idx + 1}: MULTIPLE_CHOICE must have content.correctIndex or content.randomization.correctIndex`;
+      }
+    }
+    if (p.type === "MULTI_SELECT") {
+      const hasOptions =
+        (Array.isArray(content.options) && content.options.length >= 2) ||
+        (Array.isArray(randomization?.optionTemplates) &&
+          (randomization?.optionTemplates as unknown[]).length >= 2);
+      if (!hasOptions) {
+        return `Problem #${idx + 1}: MULTI_SELECT must have content.options or content.randomization.optionTemplates (at least 2)`;
+      }
+      const hasCorrectIndices =
+        (Array.isArray(content.correctIndices) && content.correctIndices.length >= 1) ||
+        (Array.isArray(randomization?.correctIndices) &&
+          (randomization?.correctIndices as unknown[]).length >= 1);
+      if (!hasCorrectIndices) {
+        return `Problem #${idx + 1}: MULTI_SELECT must have content.correctIndices or content.randomization.correctIndices`;
       }
     }
     if (p.type === "FREE_INPUT") {

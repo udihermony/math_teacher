@@ -49,6 +49,11 @@ export function ProblemEditor({ initialData, availableSkills, onSave, saving }: 
   const [correctIndex, setCorrectIndex] = useState(
     (initialData?.content?.correctIndex as number) ?? 0
   );
+  const [correctIndices, setCorrectIndices] = useState<number[]>(
+    Array.isArray(initialData?.content?.correctIndices)
+      ? (initialData?.content?.correctIndices as number[])
+      : [0]
+  );
   const [hints, setHints] = useState<string[]>(
     (initialData?.content?.hints as string[]) || [""]
   );
@@ -91,10 +96,23 @@ export function ProblemEditor({ initialData, availableSkills, onSave, saving }: 
     e.preventDefault();
 
     const content: Record<string, unknown> = { question };
+    const optionEntries = options
+      .map((option, index) => ({ option: option.trim(), index }))
+      .filter((entry) => entry.option.length > 0);
+    const filteredOptions = optionEntries.map((entry) => entry.option);
+    const optionIndexMap = new Map(optionEntries.map((entry, newIndex) => [entry.index, newIndex]));
 
     if (type === "MULTIPLE_CHOICE") {
-      content.options = options.filter((o) => o.trim());
-      content.correctIndex = correctIndex;
+      content.options = filteredOptions;
+      content.correctIndex = optionIndexMap.get(correctIndex) ?? 0;
+      content.hints = hints.filter((h) => h.trim());
+    } else if (type === "MULTI_SELECT") {
+      content.options = filteredOptions;
+      content.correctIndices = [...new Set(
+        correctIndices
+          .map((index) => optionIndexMap.get(index))
+          .filter((index): index is number => typeof index === "number")
+      )].sort((a, b) => a - b);
       content.hints = hints.filter((h) => h.trim());
     } else if (type === "FREE_INPUT") {
       content.correctAnswer = correctAnswer;
@@ -153,6 +171,7 @@ export function ProblemEditor({ initialData, availableSkills, onSave, saving }: 
             className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
           >
             <option value="MULTIPLE_CHOICE">Multiple Choice</option>
+            <option value="MULTI_SELECT">Multi Select</option>
             <option value="FREE_INPUT">Free Input</option>
             <option value="WORKED_SOLUTION">Worked Solution</option>
           </select>
@@ -224,6 +243,66 @@ export function ProblemEditor({ initialData, availableSkills, onSave, saving }: 
                     if (correctIndex >= idx && correctIndex > 0) {
                       setCorrectIndex(correctIndex - 1);
                     }
+                  }}
+                  className="rounded p-1 text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </div>
+          ))}
+          {options.length < 6 && (
+            <button
+              type="button"
+              onClick={() => setOptions([...options, ""])}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <Plus size={12} />
+              Add option
+            </button>
+          )}
+        </div>
+      )}
+
+      {type === "MULTI_SELECT" && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold">Answer Options</h3>
+          <p className="text-xs text-muted-foreground">Choose all correct options.</p>
+          {options.map((opt, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={correctIndices.includes(idx)}
+                onChange={() => {
+                  setCorrectIndices((prev) =>
+                    prev.includes(idx) ? prev.filter((value) => value !== idx) : [...prev, idx]
+                  );
+                }}
+                className="h-4 w-4"
+              />
+              <span className="w-6 text-center text-xs font-medium text-muted-foreground">
+                {String.fromCharCode(65 + idx)}
+              </span>
+              <input
+                value={opt}
+                onChange={(e) => {
+                  const updated = [...options];
+                  updated[idx] = e.target.value;
+                  setOptions(updated);
+                }}
+                className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                placeholder={`Option ${String.fromCharCode(65 + idx)}`}
+              />
+              {options.length > 2 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOptions(options.filter((_, i) => i !== idx));
+                    setCorrectIndices((prev) =>
+                      prev
+                        .filter((value) => value !== idx)
+                        .map((value) => (value > idx ? value - 1 : value))
+                    );
                   }}
                   className="rounded p-1 text-muted-foreground hover:text-destructive"
                 >

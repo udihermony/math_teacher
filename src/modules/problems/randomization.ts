@@ -1,5 +1,6 @@
 import type {
   FreeInputContent,
+  MultiSelectContent,
   MultipleChoiceContent,
   ProblemInstance,
   ProblemRandomization,
@@ -14,7 +15,7 @@ interface RandomizedProblemLike {
 }
 
 interface InstantiatedProblem {
-  content: MultipleChoiceContent | FreeInputContent;
+  content: MultipleChoiceContent | MultiSelectContent | FreeInputContent;
   solution?: ProblemSolution | null;
   instance?: ProblemInstance;
 }
@@ -131,6 +132,10 @@ function hasDistinctOptions(options: string[]): boolean {
   return new Set(options.map((option) => option.trim())).size === options.length;
 }
 
+function hasUniqueIndices(indices: number[]): boolean {
+  return new Set(indices).size === indices.length;
+}
+
 function instantiateRandomizedProblem(
   problem: RandomizedProblemLike,
   randomization: ProblemRandomization,
@@ -194,6 +199,42 @@ function instantiateRandomizedProblem(
       };
     }
 
+    if (problem.type === "MULTI_SELECT") {
+      const optionTemplates =
+        randomization.optionTemplates ??
+        (Array.isArray(problem.content.options) ? (problem.content.options as string[]) : []);
+      const options = optionTemplates.map((option) => interpolateTemplate(option, variables));
+      const correctIndices =
+        randomization.correctIndices ??
+        (Array.isArray(problem.content.correctIndices) ? (problem.content.correctIndices as number[]) : []);
+
+      if (!questionTemplate || options.length < 2 || correctIndices.length === 0) {
+        throw new Error("Invalid randomized multi select problem configuration");
+      }
+      if (!hasDistinctOptions(options) || !hasUniqueIndices(correctIndices)) continue;
+      if (correctIndices.some((index) => index < 0 || index >= options.length)) continue;
+
+      return {
+        content: {
+          question: interpolateTemplate(questionTemplate, variables),
+          options,
+          correctIndices,
+          hints,
+        },
+        solution: solutionSteps ? { steps: solutionSteps } : problem.solution,
+        instance: {
+          seed,
+          variables,
+          content: {
+            question: interpolateTemplate(questionTemplate, variables),
+            options,
+            correctIndices,
+            hints,
+          },
+        },
+      };
+    }
+
     if (problem.type === "FREE_INPUT") {
       const answerFormula =
         randomization.correctAnswerFormula ??
@@ -244,9 +285,9 @@ export function instantiateProblem(
 ): InstantiatedProblem {
   const randomization = getProblemRandomization(problem.content);
 
-  if (!randomization || (problem.type !== "MULTIPLE_CHOICE" && problem.type !== "FREE_INPUT")) {
+  if (!randomization || (problem.type !== "MULTIPLE_CHOICE" && problem.type !== "MULTI_SELECT" && problem.type !== "FREE_INPUT")) {
     return {
-      content: problem.content as unknown as MultipleChoiceContent | FreeInputContent,
+      content: problem.content as unknown as MultipleChoiceContent | MultiSelectContent | FreeInputContent,
       solution: problem.solution,
     };
   }

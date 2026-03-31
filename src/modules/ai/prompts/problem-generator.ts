@@ -43,6 +43,27 @@ OUTPUT EXAMPLES:
     "commonMistakes": { "patterns": ["Adding {{b}} instead of subtracting it", "Forgetting to divide by {{a}}"] }
   },
   {
+    "type": "MULTI_SELECT",
+    "difficulty": 5,
+    "content": {
+      "question": "Which of these values are multiples of {{n}}?",
+      "options": ["{{n * 2}}", "{{n * 3}}", "{{n * 3 + 1}}", "{{n * 4}}"],
+      "correctIndices": [0, 1, 3],
+      "hints": ["A multiple of {{n}} can be written as {{n}} times an integer."],
+      "randomization": {
+        "questionTemplate": "Which of these values are multiples of {{n}}?",
+        "variables": {
+          "n": { "min": 2, "max": 12 }
+        },
+        "optionTemplates": ["{{n * 2}}", "{{n * 3}}", "{{n * 3 + 1}}", "{{n * 4}}"],
+        "correctIndices": [0, 1, 3],
+        "hintTemplates": ["A multiple of {{n}} can be written as {{n}} times an integer."]
+      }
+    },
+    "solution": { "steps": ["Check each option by dividing by {{n}}.", "{{n * 2}}, {{n * 3}}, and {{n * 4}} divide evenly by {{n}}.", "{{n * 3 + 1}} does not divide evenly by {{n}}."] },
+    "commonMistakes": { "patterns": ["Choosing numbers that are close to a multiple", "Selecting only one correct option when several apply"] }
+  },
+  {
     "type": "MULTIPLE_CHOICE",
     "difficulty": 6,
     "content": {
@@ -73,13 +94,14 @@ RULES:
 2. Every problem MUST have hints, solution steps, and common mistakes.
 3. Difficulty should range within the requested range.
 4. For MULTIPLE_CHOICE: always 4 options, distractors should be plausible (based on common mistakes).
-5. For FREE_INPUT: correctAnswer must be the simplest form.
-6. Mix problem types unless specifically told otherwise.
-7. When a skill can be re-tested with fresh numbers, include \`content.randomization\`.
-8. Keep generated numbers student-friendly unless the prompt explicitly asks for messy decimals or fractions.
-9. Use constraints to avoid invalid cases such as division by zero, duplicate multiple-choice options, or ambiguous answers.
-10. Only omit \`content.randomization\` when the problem truly needs fixed values, proof, or a specific real-world data set.
-11. Output ONLY the JSON code block — no additional commentary.`;
+5. For MULTI_SELECT: always 4 options and at least 2 correct options when mathematically natural.
+6. For FREE_INPUT: correctAnswer must be the simplest form.
+7. Mix problem types unless specifically told otherwise.
+8. When a skill can be re-tested with fresh numbers, include \`content.randomization\`.
+9. Keep generated numbers student-friendly unless the prompt explicitly asks for messy decimals or fractions.
+10. Use constraints to avoid invalid cases such as division by zero, duplicate options, or ambiguous answers.
+11. Only omit \`content.randomization\` when the problem truly needs fixed values, proof, or a specific real-world data set.
+12. Output ONLY the JSON code block — no additional commentary.`;
 
 export function buildProblemGeneratorPrompt(params: {
   topic: string;
@@ -92,7 +114,7 @@ export function buildProblemGeneratorPrompt(params: {
 }): string {
   const typeStr = params.types?.length
     ? params.types.join(" and ")
-    : "a mix of MULTIPLE_CHOICE and FREE_INPUT";
+    : "a mix of MULTIPLE_CHOICE, MULTI_SELECT, and FREE_INPUT";
 
   return `${PROBLEM_GENERATOR_PROMPT}
 

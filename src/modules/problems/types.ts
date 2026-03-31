@@ -17,6 +17,7 @@ export interface ProblemRandomization {
   solutionTemplates?: string[];
   correctAnswerFormula?: string;
   correctIndex?: number;
+  correctIndices?: number[];
   variables?: Record<string, VariableSpec>;
   constraints?: string[];
   maxAttempts?: number;
@@ -26,6 +27,14 @@ export interface MultipleChoiceContent {
   question: string;
   options: string[];
   correctIndex: number;
+  hints?: string[];
+  randomization?: ProblemRandomization;
+}
+
+export interface MultiSelectContent {
+  question: string;
+  options: string[];
+  correctIndices: number[];
   hints?: string[];
   randomization?: ProblemRandomization;
 }
@@ -45,7 +54,7 @@ export interface ProblemSolution {
 export interface ProblemInstance {
   seed: string;
   variables?: Record<string, number>;
-  content: MultipleChoiceContent | FreeInputContent;
+  content: MultipleChoiceContent | MultiSelectContent | FreeInputContent;
 }
 
 export interface SubmissionResult {

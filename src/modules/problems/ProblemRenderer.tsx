@@ -1,9 +1,11 @@
 "use client";
 
 import { MultipleChoice } from "./components/MultipleChoice";
+import { MultiSelect } from "./components/MultiSelect";
 import { FreeInput } from "./components/FreeInput";
 import type {
   MultipleChoiceContent,
+  MultiSelectContent,
   FreeInputContent,
   SubmissionResult,
 } from "./types";
@@ -34,6 +36,16 @@ export function ProblemRenderer({
       return (
         <MultipleChoice
           content={problem.content as unknown as MultipleChoiceContent}
+          onSubmit={onSubmit}
+          result={result}
+          disabled={disabled}
+        />
+      );
+
+    case "MULTI_SELECT":
+      return (
+        <MultiSelect
+          content={problem.content as unknown as MultiSelectContent}
           onSubmit={onSubmit}
           result={result}
           disabled={disabled}

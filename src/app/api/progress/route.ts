@@ -72,6 +72,16 @@ export async function POST(request: NextRequest) {
     const selectedIndex = answer.selectedIndex as number;
     const correctIndex = content.correctIndex as number;
     isCorrect = selectedIndex === correctIndex;
+  } else if (problem.type === "MULTI_SELECT") {
+    const selectedIndices = Array.isArray(answer.selectedIndices)
+      ? [...new Set((answer.selectedIndices as number[]).map(Number))].sort((a, b) => a - b)
+      : [];
+    const correctIndices = Array.isArray(content.correctIndices)
+      ? [...new Set((content.correctIndices as number[]).map(Number))].sort((a, b) => a - b)
+      : [];
+    isCorrect =
+      selectedIndices.length === correctIndices.length &&
+      selectedIndices.every((value, index) => value === correctIndices[index]);
   } else if (problem.type === "FREE_INPUT") {
     const studentValue = answer.value as string;
     const correctAnswer = content.correctAnswer as string;
@@ -237,6 +247,10 @@ export async function POST(request: NextRequest) {
       const options = content.options as string[];
       const correctIndex = content.correctIndex as number;
       result.correctAnswer = options[correctIndex];
+    } else if (problem.type === "MULTI_SELECT") {
+      const options = Array.isArray(content.options) ? (content.options as string[]) : [];
+      const correctIndices = Array.isArray(content.correctIndices) ? (content.correctIndices as number[]) : [];
+      result.correctAnswer = correctIndices.map((index) => options[index] ?? String(index)).join(", ");
     } else if (problem.type === "FREE_INPUT") {
       result.correctAnswer = content.correctAnswer;
     }

@@ -189,7 +189,7 @@ where <number> is your estimate of how many minutes a student would need to comp
       data: {
         lessonId,
         purpose: "TEST",
-        type: (p.type as "MULTIPLE_CHOICE" | "FREE_INPUT") || "MULTIPLE_CHOICE",
+        type: (p.type as "MULTIPLE_CHOICE" | "MULTI_SELECT" | "FREE_INPUT") || "MULTIPLE_CHOICE",
         difficulty: p.difficulty || 5,
         content: validated.content as never,
         solution: (p.solution as never) ?? undefined,

@@ -290,6 +290,45 @@ export default function TestTakingPage({ params }: { params: Promise<{ requestId
           </div>
         )}
 
+        {problem.type === "MULTI_SELECT" && content.options && (
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">Select all that apply.</p>
+            {content.options.map((option, idx) => {
+              const selectedIndices = Array.isArray(answers[problem.id]?.selectedIndices)
+                ? (answers[problem.id]?.selectedIndices as number[])
+                : [];
+              const selected = selectedIndices.includes(idx);
+              return (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    if (timeExpired) return;
+                    const next = selected
+                      ? selectedIndices.filter((value) => value !== idx)
+                      : [...selectedIndices, idx];
+                    setAnswer(problem.id, {
+                      selectedIndices: [...new Set(next)].sort((a, b) => a - b),
+                    });
+                  }}
+                  disabled={timeExpired}
+                  className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors disabled:opacity-50 ${
+                    selected
+                      ? "border-primary bg-primary/10 font-medium"
+                      : "border-border hover:bg-secondary"
+                  }`}
+                >
+                  <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-bold ${
+                    selected ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+                  }`}>
+                    {String.fromCharCode(65 + idx)}
+                  </span>
+                  {option}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Free input */}
         {problem.type === "FREE_INPUT" && (
           <input
