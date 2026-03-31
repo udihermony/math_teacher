@@ -14,6 +14,7 @@ import {
   RotateCcw,
   Loader2,
   BookOpen,
+  Compass,
 } from "lucide-react";
 import { ProblemRenderer } from "@/modules/problems";
 import { useProblem } from "@/modules/problems/hooks/useProblem";
@@ -25,6 +26,7 @@ import { XPBar } from "@/modules/gamification/components/XPBar";
 import { StreakCounter } from "@/modules/gamification/components/StreakCounter";
 import { TopicBrowser } from "./TopicBrowser";
 import { TutorialPopup } from "@/modules/tutorial/TutorialPopup";
+import { DeepDivePopup } from "@/modules/deep-dive/DeepDivePopup";
 import type { BadgeDefinition } from "@/modules/gamification/badge-definitions";
 
 function difficultyStyles(d: number): { solid: string; faded: string; ring: string } {
@@ -96,12 +98,22 @@ function PracticeInner() {
   const [coinBalance, setCoinBalance] = useState(0);
   const [lastCoinsEarned, setLastCoinsEarned] = useState(0);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [showDeepDive, setShowDeepDive] = useState(false);
+  const [hasDeepDive, setHasDeepDive] = useState(false);
 
   // Set lesson context for companion chat persistence
   useEffect(() => {
     setLessonContext(lessonId);
     return () => setLessonContext(null);
   }, [lessonId, setLessonContext]);
+
+  // Check if lesson has a deep dive
+  useEffect(() => {
+    if (!lessonId) return;
+    fetch(`/api/student/deep-dive?lessonId=${lessonId}`)
+      .then((res) => setHasDeepDive(res.ok))
+      .catch(() => setHasDeepDive(false));
+  }, [lessonId]);
 
   // Load problems
   useEffect(() => {
@@ -275,6 +287,17 @@ function PracticeInner() {
         <TutorialPopup lessonId={lessonId} onClose={() => setShowTutorial(false)} />
       )}
 
+      {showDeepDive && lessonId && (
+        <DeepDivePopup
+          lessonId={lessonId}
+          onClose={() => setShowDeepDive(false)}
+          onCoinsEarned={(earned, balance) => {
+            setLastCoinsEarned(earned);
+            setCoinBalance(balance);
+          }}
+        />
+      )}
+
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -425,14 +448,26 @@ function PracticeInner() {
                 </Badge>
               ))}
               {lessonId && (
-                <button
-                  onClick={() => setShowTutorial(true)}
-                  className="ml-auto flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                  title="Open lesson tutorial"
-                >
-                  <BookOpen size={13} />
-                  Tutorial
-                </button>
+                <div className="ml-auto flex items-center gap-1.5">
+                  <button
+                    onClick={() => setShowTutorial(true)}
+                    className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                    title="Open lesson tutorial"
+                  >
+                    <BookOpen size={13} />
+                    Tutorial
+                  </button>
+                  {hasDeepDive && (
+                    <button
+                      onClick={() => setShowDeepDive(true)}
+                      className="flex items-center gap-1.5 rounded-md border border-purple-500/30 bg-purple-500/10 px-2.5 py-1 text-xs text-purple-600 hover:bg-purple-500/20 dark:text-purple-400 transition-colors"
+                      title="Deep Dive — bonus enrichment content"
+                    >
+                      <Compass size={13} />
+                      Deep Dive
+                    </button>
+                  )}
+                </div>
               )}
             </div>
 
@@ -498,12 +533,23 @@ function PracticeInner() {
                 <p className="mt-1 text-xs text-muted-foreground">
                   {solvedIds.size}/{problemQueue.length} questions solved overall
                 </p>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="mt-4 rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-                >
-                  Practice Again
-                </button>
+                <div className="mt-4 flex justify-center gap-3">
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+                  >
+                    Practice Again
+                  </button>
+                  {hasDeepDive && (
+                    <button
+                      onClick={() => setShowDeepDive(true)}
+                      className="flex items-center gap-1.5 rounded-md bg-purple-600 px-6 py-2 text-sm font-medium text-white hover:bg-purple-700"
+                    >
+                      <Compass size={14} />
+                      Deep Dive
+                    </button>
+                  )}
+                </div>
               </motion.div>
             )}
 
