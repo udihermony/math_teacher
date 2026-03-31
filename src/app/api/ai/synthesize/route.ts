@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    return Response.json({ error: "API key not configured" }, { status: 500 });
+    return Response.json({ error: "AI service is not configured. Please contact your administrator." }, { status: 500 });
   }
 
   const anthropic = new Anthropic({ apiKey });

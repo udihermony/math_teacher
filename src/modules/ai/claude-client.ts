@@ -47,6 +47,61 @@ async function getUserAIConfig(userId: string): Promise<UserAIConfig | null> {
   }
 }
 
+// ── Provider error detection & fallback ─────────────────
+
+export class AIProviderError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AIProviderError";
+  }
+}
+
+function isProviderError(err: unknown): boolean {
+  if (err && typeof err === "object" && "status" in err) {
+    const status = (err as { status: number }).status;
+    if (status === 401 || status === 403 || status === 429) return true;
+  }
+  if (err instanceof Error) {
+    const msg = err.message.toLowerCase();
+    if (
+      msg.includes("api key") ||
+      msg.includes("authentication") ||
+      msg.includes("unauthorized") ||
+      msg.includes("quota") ||
+      msg.includes("rate limit") ||
+      msg.includes("billing") ||
+      msg.includes("insufficient") ||
+      msg.includes("exceeded")
+    ) return true;
+  }
+  return false;
+}
+
+function hasDefaultKey(): boolean {
+  return !!process.env.ANTHROPIC_API_KEY;
+}
+
+function throwProviderError(config: UserAIConfig | null, defaultFailed: boolean): never {
+  if (config && defaultFailed) {
+    throw new AIProviderError(
+      `Your ${config.provider} API key and the platform AI service are both unavailable. Please check your API key in Settings or try again later.`
+    );
+  }
+  if (config && !hasDefaultKey()) {
+    throw new AIProviderError(
+      `Your ${config.provider} API key is invalid, expired, or over quota. Please update it in Settings.`
+    );
+  }
+  if (!config && defaultFailed) {
+    throw new AIProviderError(
+      "AI service is temporarily unavailable. Please try again later or configure your own API key in Settings."
+    );
+  }
+  throw new AIProviderError(
+    "No AI provider available. Please configure an API key in Settings."
+  );
+}
+
 // ── Rate limiter ─────────────────────────────────────────
 
 const rateLimiter = {
@@ -167,33 +222,13 @@ async function askGemini(
 
 // ── Main exported functions ──────────────────────────────
 
-export async function askClaude({
-  userId,
-  systemPrompt,
-  messages,
-  maxTokens = 1024,
-}: AskOptions): Promise<AIResponse> {
-  if (!rateLimiter.check(userId)) {
-    throw new Error("Rate limit exceeded. Please wait a moment.");
-  }
-  rateLimiter.record(userId);
-
-  const config = await getUserAIConfig(userId);
-
-  if (config?.provider === "OPENAI") {
-    return askOpenAI(config.apiKey, systemPrompt, messages, maxTokens);
-  }
-
-  if (config?.provider === "GEMINI") {
-    return askGemini(config.apiKey, systemPrompt, messages, maxTokens);
-  }
-
-  // Anthropic (user key or default)
-  const anthropic = config?.provider === "ANTHROPIC"
-    ? new Anthropic({ apiKey: config.apiKey })
-    : getDefaultClient();
-
-  const response = await anthropic.messages.create({
+async function askAnthropic(
+  client: Anthropic,
+  systemPrompt: string,
+  messages: { role: "user" | "assistant"; content: string }[],
+  maxTokens: number
+): Promise<AIResponse> {
+  const response = await client.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: maxTokens,
     system: systemPrompt,
@@ -209,6 +244,48 @@ export async function askClaude({
       outputTokens: response.usage.output_tokens,
     },
   };
+}
+
+export async function askClaude({
+  userId,
+  systemPrompt,
+  messages,
+  maxTokens = 1024,
+}: AskOptions): Promise<AIResponse> {
+  if (!rateLimiter.check(userId)) {
+    throw new Error("Rate limit exceeded. Please wait a moment.");
+  }
+  rateLimiter.record(userId);
+
+  const config = await getUserAIConfig(userId);
+
+  // Try user's configured provider first
+  if (config) {
+    try {
+      if (config.provider === "OPENAI") {
+        return await askOpenAI(config.apiKey, systemPrompt, messages, maxTokens);
+      }
+      if (config.provider === "GEMINI") {
+        return await askGemini(config.apiKey, systemPrompt, messages, maxTokens);
+      }
+      return await askAnthropic(new Anthropic({ apiKey: config.apiKey }), systemPrompt, messages, maxTokens);
+    } catch (err) {
+      if (!isProviderError(err)) throw err;
+      // Fall through to platform default
+    }
+  }
+
+  // Platform default Anthropic
+  if (!hasDefaultKey()) {
+    throwProviderError(config, false);
+  }
+
+  try {
+    return await askAnthropic(getDefaultClient(), systemPrompt, messages, maxTokens);
+  } catch (err) {
+    if (isProviderError(err)) throwProviderError(config, true);
+    throw err;
+  }
 }
 
 export interface AgentOptions {
@@ -233,17 +310,27 @@ export async function agentClaude({
 
   // Agent/tool calls only supported with Anthropic
   const config = await getUserAIConfig(userId);
-  const anthropic = config?.provider === "ANTHROPIC"
-    ? new Anthropic({ apiKey: config.apiKey })
-    : getDefaultClient();
+  const callArgs = { model: "claude-sonnet-4-6" as const, max_tokens: maxTokens, system: systemPrompt, messages, tools };
 
-  return anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: maxTokens,
-    system: systemPrompt,
-    messages,
-    tools,
-  });
+  // Try user's Anthropic key first
+  if (config?.provider === "ANTHROPIC") {
+    try {
+      return await new Anthropic({ apiKey: config.apiKey }).messages.create(callArgs);
+    } catch (err) {
+      if (!isProviderError(err)) throw err;
+    }
+  }
+
+  if (!hasDefaultKey()) {
+    throwProviderError(config, false);
+  }
+
+  try {
+    return await getDefaultClient().messages.create(callArgs);
+  } catch (err) {
+    if (isProviderError(err)) throwProviderError(config, true);
+    throw err;
+  }
 }
 
 /**
@@ -262,39 +349,81 @@ export async function researchClaude({
 
   // Research mode only supported with Anthropic
   const config = await getUserAIConfig(userId);
-  const anthropic = config?.provider === "ANTHROPIC"
-    ? new Anthropic({ apiKey: config.apiKey })
-    : getDefaultClient();
 
-  const response = await anthropic.messages.create({
+  function callResearch(client: Anthropic) {
+    return client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages,
+      thinking: {
+        type: "enabled",
+        budget_tokens: 5000,
+      },
+      tools: [
+        {
+          type: "web_search_20250305",
+          name: "web_search",
+          max_uses: 5,
+        },
+      ],
+    });
+  }
+
+  function parseResearchResponse(response: Anthropic.Message): AIResponse {
+    const textParts = response.content
+      .filter((c): c is Anthropic.TextBlock => c.type === "text")
+      .map((c) => c.text);
+    return {
+      content: textParts.join("\n"),
+      usage: {
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+      },
+    };
+  }
+
+  if (config?.provider === "ANTHROPIC") {
+    try {
+      return parseResearchResponse(await callResearch(new Anthropic({ apiKey: config.apiKey })));
+    } catch (err) {
+      if (!isProviderError(err)) throw err;
+    }
+  }
+
+  if (!hasDefaultKey()) {
+    throwProviderError(config, false);
+  }
+
+  try {
+    return parseResearchResponse(await callResearch(getDefaultClient()));
+  } catch (err) {
+    if (isProviderError(err)) throwProviderError(config, true);
+    throw err;
+  }
+}
+
+async function* streamAnthropic(
+  client: Anthropic,
+  systemPrompt: string,
+  messages: { role: "user" | "assistant"; content: string }[],
+  maxTokens: number
+): AsyncGenerator<string> {
+  const stream = client.messages.stream({
     model: "claude-sonnet-4-6",
     max_tokens: maxTokens,
     system: systemPrompt,
     messages,
-    thinking: {
-      type: "enabled",
-      budget_tokens: 5000,
-    },
-    tools: [
-      {
-        type: "web_search_20250305",
-        name: "web_search",
-        max_uses: 5,
-      },
-    ],
   });
 
-  const textParts = response.content
-    .filter((c): c is Anthropic.TextBlock => c.type === "text")
-    .map((c) => c.text);
-
-  return {
-    content: textParts.join("\n"),
-    usage: {
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
-    },
-  };
+  for await (const event of stream) {
+    if (
+      event.type === "content_block_delta" &&
+      event.delta.type === "text_delta"
+    ) {
+      yield event.delta.text;
+    }
+  }
 }
 
 export async function* streamClaude({
@@ -310,37 +439,36 @@ export async function* streamClaude({
 
   const config = await getUserAIConfig(userId);
 
-  if (config?.provider === "OPENAI") {
-    yield* streamOpenAI(config.apiKey, systemPrompt, messages, maxTokens);
-    return;
-  }
-
-  if (config?.provider === "GEMINI") {
-    // Gemini doesn't have a clean streaming API in the same pattern,
-    // fall back to non-streaming and yield the full result
-    const result = await askGemini(config.apiKey, systemPrompt, messages, maxTokens);
-    yield result.content;
-    return;
-  }
-
-  // Anthropic (user key or default)
-  const anthropic = config?.provider === "ANTHROPIC"
-    ? new Anthropic({ apiKey: config.apiKey })
-    : getDefaultClient();
-
-  const stream = anthropic.messages.stream({
-    model: "claude-sonnet-4-6",
-    max_tokens: maxTokens,
-    system: systemPrompt,
-    messages,
-  });
-
-  for await (const event of stream) {
-    if (
-      event.type === "content_block_delta" &&
-      event.delta.type === "text_delta"
-    ) {
-      yield event.delta.text;
+  // Try user's configured provider first
+  if (config) {
+    try {
+      if (config.provider === "OPENAI") {
+        yield* streamOpenAI(config.apiKey, systemPrompt, messages, maxTokens);
+        return;
+      }
+      if (config.provider === "GEMINI") {
+        const result = await askGemini(config.apiKey, systemPrompt, messages, maxTokens);
+        yield result.content;
+        return;
+      }
+      // ANTHROPIC with user key
+      yield* streamAnthropic(new Anthropic({ apiKey: config.apiKey }), systemPrompt, messages, maxTokens);
+      return;
+    } catch (err) {
+      if (!isProviderError(err)) throw err;
+      // Fall through to platform default
     }
+  }
+
+  // Platform default Anthropic
+  if (!hasDefaultKey()) {
+    throwProviderError(config, false);
+  }
+
+  try {
+    yield* streamAnthropic(getDefaultClient(), systemPrompt, messages, maxTokens);
+  } catch (err) {
+    if (isProviderError(err)) throwProviderError(config, true);
+    throw err;
   }
 }
