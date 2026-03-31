@@ -31,6 +31,7 @@ interface PhaseData {
   label: string;
   testPassed: boolean;
   testBonus: { earned: number; possible: number };
+  perLesson: { practice: number; quiz: number; deepDive: number };
   topics: TopicData[];
 }
 
@@ -211,6 +212,10 @@ export default function BankPage() {
                       </span>
                     )}
                   </div>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground/70">
+                    Per lesson: {phase.perLesson.practice} practice · {phase.perLesson.quiz} quiz
+                    {phase.perLesson.deepDive > 0 && ` · ${phase.perLesson.deepDive} deep dive`}
+                  </p>
                 </div>
               </button>
 

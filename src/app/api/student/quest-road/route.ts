@@ -247,11 +247,19 @@ export async function GET() {
     const phaseCoinsEarned = questTopics.reduce((s, t) => s + t.coins.earned, 0);
     const phaseCoinsTotal = questTopics.reduce((s, t) => s + t.coins.total, 0);
 
+    // Per-lesson reward rates for this phase
+    const perLesson = {
+      practice: maxPracticeCoins(phase),
+      quiz: quizBonus(phase),
+      deepDive: deepDiveBonus(phase),
+    };
+
     return {
       phase,
       status: phaseStatus,
       topics: questTopics,
       coins: { earned: phaseCoinsEarned, total: phaseCoinsTotal },
+      perLesson,
     };
   });
 

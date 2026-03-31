@@ -85,6 +85,7 @@ export async function GET() {
           id: true,
           title: true,
           coinableCount: true,
+          deepDive: true,
           assignments: {
             where: { classId: cls.id },
             select: { id: true },
@@ -224,7 +225,7 @@ export async function GET() {
       const lessons = topic.lessons.map((lesson) => {
         const maxPractice = lesson.coinableCount ?? maxPracticeCoins(phase);
         const maxQuiz = quizBonus(phase);
-        const maxDeepDive = deepDiveBonus(phase);
+        const maxDeepDive = lesson.deepDive ? deepDiveBonus(phase) : 0;
 
         const practiceEarned = coinTransactions
           .filter((tx) => tx.reason === "CORRECT_ANSWER" && tx.sourceId === lesson.id)
@@ -278,6 +279,11 @@ export async function GET() {
       testBonus: {
         earned: phaseTestBonusEarned ? testPhaseBonus(phase) : 0,
         possible: testPhaseBonus(phase),
+      },
+      perLesson: {
+        practice: maxPracticeCoins(phase),
+        quiz: quizBonus(phase),
+        deepDive: deepDiveBonus(phase),
       },
       topics: topicData,
     };

@@ -281,7 +281,7 @@ export async function totalPossibleCoins(classId: string): Promise<{
     where: { phase: { in: phases as never } },
     include: {
       lessons: {
-        select: { id: true, coinableCount: true },
+        select: { id: true, coinableCount: true, deepDive: true },
       },
     },
   });
@@ -302,7 +302,9 @@ export async function totalPossibleCoins(classId: string): Promise<{
     for (const lesson of topic.lessons) {
       practice += lesson.coinableCount ?? maxPracticeCoins(phase);
       quizBonuses += quizBonus(phase);
-      deepDiveBonuses += deepDiveBonus(phase);
+      if (lesson.deepDive) {
+        deepDiveBonuses += deepDiveBonus(phase);
+      }
     }
     topicBonuses += topicBonus(phase);
     testTopicBonuses += testTopicBonus(phase);

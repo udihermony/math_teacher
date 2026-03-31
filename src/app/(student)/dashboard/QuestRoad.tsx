@@ -56,6 +56,7 @@ interface QuestPhase {
   status: "available" | "in_progress" | "completed";
   topics: QuestTopic[];
   coins: { earned: number; total: number };
+  perLesson: { practice: number; quiz: number; deepDive: number };
 }
 
 interface QuestData {
@@ -317,6 +318,10 @@ function PhaseSection({
           <p className="text-xs text-muted-foreground">
             {completedTopics}/{phase.topics.length} topics passed · {progressPct}%
             {phase.status === "completed" && " · Level Passed!"}
+          </p>
+          <p className="text-[10px] text-muted-foreground/70">
+            Per lesson: {phase.perLesson.practice} practice · {phase.perLesson.quiz} quiz
+            {phase.perLesson.deepDive > 0 && ` · ${phase.perLesson.deepDive} deep dive`}
           </p>
         </div>
 
