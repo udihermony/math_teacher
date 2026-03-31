@@ -102,7 +102,12 @@ RULES:
 9. Keep generated numbers student-friendly unless the prompt explicitly asks for messy decimals or fractions.
 10. Use constraints to avoid invalid cases such as division by zero, duplicate options, or ambiguous answers.
 11. Only omit \`content.randomization\` when the problem truly needs fixed values, proof, or a specific real-world data set.
-12. Output ONLY the JSON code block — no additional commentary.`;
+12. Output ONLY the JSON code block — no additional commentary.
+
+CRITICAL — randomization.variables rules:
+- Every identifier used in \`{{ }}\` placeholders (in questionTemplate, optionTemplates, hintTemplates, solutionTemplates, correctAnswerFormula, and constraints) MUST be declared inside \`randomization.variables\`. There is no other place to declare them — no \`variables_extra\`, no top-level fields, nothing else. If a template uses \`{{target}}\`, then \`target\` must appear as a key in \`variables\` (e.g. with a \`formula\`).
+- Computed values (like a target answer) go in \`variables\` with a \`"formula"\` field, e.g. \`"target": { "formula": "(a + b) * c" }\`. Variables with formulas can reference previously declared variables.
+- The only recognized fields inside \`randomization\` are: \`variables\`, \`constraints\`, \`questionTemplate\`, \`optionTemplates\`, \`hintTemplates\`, \`solutionTemplates\`, \`correctAnswerFormula\`, \`correctIndex\`, \`correctIndices\`, \`enabled\`, \`maxAttempts\`. Do NOT invent other fields.`;
 
 export function buildProblemGeneratorPrompt(params: {
   topic: string;
