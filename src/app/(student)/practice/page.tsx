@@ -429,6 +429,9 @@ function PracticeInner() {
           </div>
           <p className="text-xs text-muted-foreground text-center mt-1">
             Question {queueIndex + 1} of {problemQueue.length}
+            {passingGrade != null && passingGrade < problemQueue.length && (
+              <span className="ml-1">· {passingGrade} correct to pass</span>
+            )}
           </p>
         </div>
       )}

@@ -598,7 +598,8 @@ function LessonNode({
         {lesson.quizAvailable && (
           <span className={`flex items-center gap-1 ${lesson.quizCompleted ? "text-green-500" : ""}`}>
             {lesson.quizCompleted ? <Check size={11} strokeWidth={3} /> : <ClipboardList size={11} />}
-            Quiz {lesson.quizCorrect}/{lesson.passingGrade}
+            Quiz {lesson.quizCorrect}/{lesson.quizTotal}
+            {lesson.passingGrade < lesson.quizTotal && ` (${lesson.passingGrade} to pass)`}
             {lesson.quizCompleted ? " passed" : ""}
           </span>
         )}

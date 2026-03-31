@@ -45,10 +45,11 @@ export async function GET(request: NextRequest) {
   }
 
   // Adaptive mode: use spaced repetition and difficulty adjustment
+  // Skip adaptive filtering when fetching by specific IDs (e.g., quiz/assignment)
   let difficultyInfo = null;
   let reviewSkills: Awaited<ReturnType<typeof getSkillsDueForReview>> = [];
 
-  if (adaptive) {
+  if (adaptive && !ids) {
     const session = await auth();
     if (session?.user?.id) {
       // Get recommended difficulty
