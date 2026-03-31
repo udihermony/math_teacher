@@ -27,8 +27,8 @@ function getDefaultClient(): Anthropic {
 // ── Per-user provider resolution ─────────────────────────
 
 interface UserAIConfig {
-  provider: "ANTHROPIC" | "OPENAI" | "GEMINI";
-  apiKey: string;
+  provider: "ANTHROPIC" | "OPENAI" | "GEMINI" | "LOCAL";
+  apiKey: string; // for LOCAL, this is the base URL
 }
 
 async function getUserAIConfig(userId: string): Promise<UserAIConfig | null> {
@@ -220,6 +220,58 @@ async function askGemini(
   };
 }
 
+// ── Local LLM adapter (OpenAI-compatible) ───────────────
+
+const LOCAL_MODEL = process.env.LOCAL_LLM_MODEL || "qwen3-14b-claude-4.5-opus-high-reasoning-distill";
+
+async function askLocal(
+  baseURL: string,
+  systemPrompt: string,
+  messages: { role: "user" | "assistant"; content: string }[],
+  maxTokens: number
+): Promise<AIResponse> {
+  const client = new OpenAI({ apiKey: "not-needed", baseURL: `${baseURL}/v1` });
+  const response = await client.chat.completions.create({
+    model: LOCAL_MODEL,
+    max_tokens: maxTokens,
+    messages: [
+      { role: "system", content: systemPrompt },
+      ...messages,
+    ],
+  });
+
+  return {
+    content: response.choices[0]?.message?.content ?? "",
+    usage: {
+      inputTokens: response.usage?.prompt_tokens ?? 0,
+      outputTokens: response.usage?.completion_tokens ?? 0,
+    },
+  };
+}
+
+async function* streamLocal(
+  baseURL: string,
+  systemPrompt: string,
+  messages: { role: "user" | "assistant"; content: string }[],
+  maxTokens: number
+): AsyncGenerator<string> {
+  const client = new OpenAI({ apiKey: "not-needed", baseURL: `${baseURL}/v1` });
+  const stream = await client.chat.completions.create({
+    model: LOCAL_MODEL,
+    max_tokens: maxTokens,
+    stream: true,
+    messages: [
+      { role: "system", content: systemPrompt },
+      ...messages,
+    ],
+  });
+
+  for await (const chunk of stream) {
+    const delta = chunk.choices[0]?.delta?.content;
+    if (delta) yield delta;
+  }
+}
+
 // ── Main exported functions ──────────────────────────────
 
 async function askAnthropic(
@@ -267,6 +319,9 @@ export async function askClaude({
       }
       if (config.provider === "GEMINI") {
         return await askGemini(config.apiKey, systemPrompt, messages, maxTokens);
+      }
+      if (config.provider === "LOCAL") {
+        return await askLocal(config.apiKey, systemPrompt, messages, maxTokens);
       }
       return await askAnthropic(new Anthropic({ apiKey: config.apiKey }), systemPrompt, messages, maxTokens);
     } catch (err) {
@@ -449,6 +504,10 @@ export async function* streamClaude({
       if (config.provider === "GEMINI") {
         const result = await askGemini(config.apiKey, systemPrompt, messages, maxTokens);
         yield result.content;
+        return;
+      }
+      if (config.provider === "LOCAL") {
+        yield* streamLocal(config.apiKey, systemPrompt, messages, maxTokens);
         return;
       }
       // ANTHROPIC with user key

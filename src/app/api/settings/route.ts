@@ -6,7 +6,7 @@ import { encrypt } from "@/lib/crypto";
 
 const updateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  aiProvider: z.enum(["ANTHROPIC", "OPENAI", "GEMINI"]).nullable().optional(),
+  aiProvider: z.enum(["ANTHROPIC", "OPENAI", "GEMINI", "LOCAL"]).nullable().optional(),
   aiApiKey: z.string().nullable().optional(),
 });
 

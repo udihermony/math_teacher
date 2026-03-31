@@ -98,6 +98,7 @@ enum AIProvider {
   ANTHROPIC
   OPENAI
   GEMINI
+  LOCAL
 }
 
 model User {

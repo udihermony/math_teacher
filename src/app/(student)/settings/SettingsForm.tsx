@@ -15,6 +15,7 @@ const PROVIDERS = [
   { value: "ANTHROPIC", label: "Anthropic (Claude)" },
   { value: "OPENAI", label: "OpenAI (GPT)" },
   { value: "GEMINI", label: "Google (Gemini)" },
+  { value: "LOCAL", label: "Local LLM (LM Studio / Ollama)" },
 ];
 
 export function SettingsForm({ initialName, email, initialProvider, hasApiKey }: SettingsFormProps) {
@@ -133,7 +134,7 @@ export function SettingsForm({ initialName, email, initialProvider, hasApiKey }:
             </select>
           </div>
 
-          {aiProvider && (
+          {aiProvider && aiProvider !== "LOCAL" && (
             <div>
               <label className="mb-1 block text-sm font-medium">API Key</label>
               {hasKey && !apiKey ? (
@@ -177,6 +178,45 @@ export function SettingsForm({ initialName, email, initialProvider, hasApiKey }:
               )}
               <p className="mt-1.5 text-xs text-muted-foreground">
                 Your key is encrypted before storage and never exposed to the browser.
+              </p>
+            </div>
+          )}
+
+          {aiProvider === "LOCAL" && (
+            <div>
+              <label className="mb-1 block text-sm font-medium">Server URL</label>
+              {hasKey && !apiKey ? (
+                <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2.5 dark:border-green-900 dark:bg-green-950/30">
+                  <ShieldCheck size={16} className="text-green-600 dark:text-green-400 shrink-0" />
+                  <span className="text-sm text-green-700 dark:text-green-400">
+                    Server URL is saved
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleClearKey}
+                    className="ml-auto rounded px-2 py-0.5 text-xs text-destructive hover:bg-destructive/10"
+                  >
+                    Remove
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHasKey(false)}
+                    className="rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-secondary"
+                  >
+                    Change
+                  </button>
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="http://192.168.1.132:1234"
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-mono"
+                />
+              )}
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                The base URL of your local LLM server (LM Studio, Ollama, etc). Uses OpenAI-compatible API.
               </p>
             </div>
           )}
