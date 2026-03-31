@@ -251,12 +251,18 @@ function instantiateRandomizedProblem(
     }
 
     if (problem.type === "FREE_INPUT") {
-      const answerFormula =
+      let answerFormula =
         randomization.correctAnswerFormula ??
         (typeof problem.content.correctAnswer === "string" ? (problem.content.correctAnswer as string) : "");
       if (!questionTemplate || !answerFormula) {
         throw new Error("Invalid randomized free input problem configuration");
       }
+
+      // Auto-fix common LLM mistake: "a + '/' + b" → "{{a}}/{{b}}"
+      answerFormula = answerFormula.replace(
+        /^(\w+)\s*\+\s*['"]\/['"]\s*\+\s*(\w+)$/,
+        "{{$1}}/{{$2}}"
+      );
 
       const correctAnswer = answerFormula.includes("{{")
         ? interpolateTemplate(answerFormula, variables)
