@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireTeacher } from "@/lib/teacher-auth";
 import { askClaude } from "@/modules/ai/claude-client";
 import { buildProblemGeneratorPrompt } from "@/modules/ai/prompts/problem-generator";
+import { validateProblemContent } from "@/modules/problems/content-validation";
 
 /** POST /api/teacher/generate-practice — generate PRACTICE problems for a lesson. */
 export async function POST(request: NextRequest) {
@@ -105,13 +106,17 @@ ${richContext}`,
 
     const createdIds: string[] = [];
     for (const p of problems) {
+      const validated = validateProblemContent(p.type, p.content);
+      if (!validated.ok) {
+        return Response.json({ error: `Generated problem is invalid: ${validated.error}` }, { status: 500 });
+      }
       const problem = await prisma.problem.create({
         data: {
           lessonId,
           purpose: "PRACTICE",
           type: (p.type as "MULTIPLE_CHOICE" | "FREE_INPUT") || "MULTIPLE_CHOICE",
           difficulty: p.difficulty || 4,
-          content: p.content as never,
+          content: validated.content as never,
           solution: (p.solution as never) ?? undefined,
           commonMistakes: (p.commonMistakes as never) ?? undefined,
         },

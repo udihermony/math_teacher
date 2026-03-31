@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Plus,
   Trash2,
@@ -46,15 +47,24 @@ const PHASE_LABELS: Record<string, string> = {
 };
 
 export function TestManagement({ classId }: { classId: string }) {
+  const searchParams = useSearchParams();
+  const requestedScope = searchParams.get("scope");
+  const requestedScopeId = searchParams.get("scopeId");
+  const requestedTitle = searchParams.get("title");
+  const autoOpen = searchParams.get("openTest") === "1";
   const [tests, setTests] = useState<TestItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(autoOpen);
   const [creating, setCreating] = useState(false);
 
   // Form state
-  const [scope, setScope] = useState<"LESSON" | "TOPIC" | "PHASE">("LESSON");
-  const [scopeId, setScopeId] = useState("");
-  const [title, setTitle] = useState("");
+  const [scope, setScope] = useState<"LESSON" | "TOPIC" | "PHASE">(
+    requestedScope === "TOPIC" || requestedScope === "PHASE" || requestedScope === "LESSON"
+      ? requestedScope
+      : "LESSON"
+  );
+  const [scopeId, setScopeId] = useState(requestedScopeId ?? "");
+  const [title, setTitle] = useState(requestedTitle ?? "");
   const [questionCount, setQuestionCount] = useState(10);
   const [durationMinutes, setDurationMinutes] = useState<number | undefined>();
   const [passingGrade, setPassingGrade] = useState<number | undefined>();

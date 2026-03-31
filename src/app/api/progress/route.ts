@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { validateAnswer } from "@/modules/problems/validators/expression-parser";
+import { instantiateProblem } from "@/modules/problems/randomization";
 import {
   calculateXPEarned,
   buildXPResult,
@@ -50,7 +51,21 @@ export async function POST(request: NextRequest) {
   }
 
   // Determine correctness based on problem type
-  const content = problem.content as Record<string, unknown>;
+  const submissionInstance =
+    answer.__instance && typeof answer.__instance === "object"
+      ? (answer.__instance as { seed?: string })
+      : null;
+
+  const instantiated = instantiateProblem(
+    {
+      type: problem.type,
+      content: problem.content as Record<string, unknown>,
+      solution: (problem.solution as { steps: string[] } | null) ?? null,
+    },
+    submissionInstance?.seed ?? problemId
+  );
+
+  const content = instantiated.content as unknown as Record<string, unknown>;
   let isCorrect = false;
 
   if (problem.type === "MULTIPLE_CHOICE") {

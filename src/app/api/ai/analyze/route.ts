@@ -61,20 +61,28 @@ export async function POST(request: Request) {
   const submissions = wrongSubmissions.map((sub) => {
     const content = sub.problem.content as Record<string, unknown>;
     const answer = sub.answer as Record<string, unknown>;
+    const instanceContent =
+      answer.__instance &&
+      typeof answer.__instance === "object" &&
+      (answer.__instance as { content?: Record<string, unknown> }).content &&
+      typeof (answer.__instance as { content?: Record<string, unknown> }).content === "object"
+        ? ((answer.__instance as { content?: Record<string, unknown> }).content as Record<string, unknown>)
+        : null;
+    const renderedContent = instanceContent ?? content;
 
-    let question = (content.question as string) || "Unknown question";
+    const question = (renderedContent.question as string) || "Unknown question";
     let studentAnswer = "";
     let correctAnswer = "";
 
     if (sub.problem.type === "MULTIPLE_CHOICE") {
-      const options = content.options as string[];
+      const options = renderedContent.options as string[];
       const selectedIdx = answer.selectedIndex as number;
-      const correctIdx = content.correctIndex as number;
+      const correctIdx = renderedContent.correctIndex as number;
       studentAnswer = options?.[selectedIdx] ?? String(selectedIdx);
       correctAnswer = options?.[correctIdx] ?? String(correctIdx);
     } else if (sub.problem.type === "FREE_INPUT") {
       studentAnswer = (answer.value as string) || "No answer";
-      correctAnswer = (content.correctAnswer as string) || "Unknown";
+      correctAnswer = (renderedContent.correctAnswer as string) || "Unknown";
     }
 
     return {
@@ -92,7 +100,7 @@ export async function POST(request: Request) {
         s.problem.skills.map((ps) => ps.skill.name)
       )
     ),
-  ];
+  ] as string[];
 
   // Get AI analysis
   const systemPrompt = buildMistakeAnalysisPrompt({
@@ -136,14 +144,6 @@ export async function POST(request: Request) {
       prerequisiteChain = getPrerequisiteChain(graph, skillId);
     } else {
       // Find gaps for all skills involved in wrong answers
-      const involvedSkillIds = [
-        ...new Set(
-          wrongSubmissions.flatMap((s) =>
-            s.problem.skills.map((ps) => ps.skill.name)
-          )
-        ),
-      ];
-
       // Use skill IDs from the submissions
       const skillIdsFromSubmissions = [
         ...new Set(

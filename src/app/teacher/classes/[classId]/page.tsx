@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, use, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Copy, Check, UserMinus, Plus, Trash2, Sparkles, Loader2, BookOpen, ExternalLink, Map, Eye } from "lucide-react";
 import { TeacherQuestRoad } from "./TeacherQuestRoad";
 import { TestManagement } from "./TestManagement";
@@ -73,6 +74,7 @@ interface TopicWithLessons {
 
 export default function ClassDetailPage({ params }: { params: Promise<{ classId: string }> }) {
   const { classId } = use(params);
+  const searchParams = useSearchParams();
   const [classData, setClassData] = useState<{ name: string; code: string; phase: string; members: Array<{ role: string; user: StudentData }> } | null>(null);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -136,6 +138,15 @@ export default function ClassDetailPage({ params }: { params: Promise<{ classId:
       .then((r) => r.json())
       .then((data) => setTopics(data.topics || []));
   }, [fetchClassData, fetchAssignments]);
+
+  useEffect(() => {
+    const focus = searchParams.get("focus");
+    const targetId = focus === "tests" ? "tests-section" : focus === "quest" ? "quest-road-section" : null;
+    if (!targetId) return;
+    const node = document.getElementById(targetId);
+    if (!node) return;
+    node.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [searchParams]);
 
   // Fetch assignment problem count when lesson selection changes
   async function fetchAssignmentProblemCount(lessonId: string) {
@@ -538,7 +549,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ classId:
       </div>
 
       {/* Test Management */}
-      <div className="mb-6">
+      <div id="tests-section" className="mb-6">
         <TestManagement classId={classId} />
       </div>
 
@@ -568,7 +579,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ classId:
       </div>
 
       {/* Quest Road */}
-      <div className="mb-6">
+      <div id="quest-road-section" className="mb-6">
         <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
           <Map size={18} />
           Quest Road

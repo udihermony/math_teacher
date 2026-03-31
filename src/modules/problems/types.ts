@@ -1,10 +1,33 @@
 export type { Problem, Submission, ProblemType } from "@/generated/prisma/client";
 
+export interface VariableSpec {
+  min?: number;
+  max?: number;
+  step?: number;
+  values?: number[];
+  exclude?: number[];
+  formula?: string;
+}
+
+export interface ProblemRandomization {
+  enabled?: boolean;
+  questionTemplate?: string;
+  optionTemplates?: string[];
+  hintTemplates?: string[];
+  solutionTemplates?: string[];
+  correctAnswerFormula?: string;
+  correctIndex?: number;
+  variables?: Record<string, VariableSpec>;
+  constraints?: string[];
+  maxAttempts?: number;
+}
+
 export interface MultipleChoiceContent {
   question: string;
   options: string[];
   correctIndex: number;
   hints?: string[];
+  randomization?: ProblemRandomization;
 }
 
 export interface FreeInputContent {
@@ -12,10 +35,17 @@ export interface FreeInputContent {
   correctAnswer: string;
   hints?: string[];
   acceptEquivalent?: boolean;
+  randomization?: ProblemRandomization;
 }
 
 export interface ProblemSolution {
   steps: string[];
+}
+
+export interface ProblemInstance {
+  seed: string;
+  variables?: Record<string, number>;
+  content: MultipleChoiceContent | FreeInputContent;
 }
 
 export interface SubmissionResult {

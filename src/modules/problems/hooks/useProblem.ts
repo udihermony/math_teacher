@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { SubmissionResult } from "../types";
+import type { ProblemInstance, SubmissionResult } from "../types";
 
 interface ProblemData {
   id: string;
@@ -9,6 +9,7 @@ interface ProblemData {
   difficulty: number;
   content: Record<string, unknown>;
   solution?: { steps: string[] } | null;
+  instance?: ProblemInstance;
 }
 
 interface UseProblemReturn {
@@ -21,6 +22,10 @@ interface UseProblemReturn {
   fetchProblem: (id: string) => Promise<void>;
   submitAnswer: (answer: Record<string, unknown>) => Promise<void>;
   nextProblem: () => void;
+}
+
+function getProblemInstanceCacheKey(id: string): string {
+  return `problem-instance:${id}`;
 }
 
 export function useProblem(): UseProblemReturn {
@@ -49,10 +54,30 @@ export function useProblem(): UseProblemReturn {
     setError(null);
     setResult(null);
     try {
+      const cached =
+        typeof window !== "undefined"
+          ? window.sessionStorage.getItem(getProblemInstanceCacheKey(id))
+          : null;
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached) as ProblemData;
+          setProblem(parsed);
+          setStartTime(Date.now());
+          return;
+        } catch {
+          if (typeof window !== "undefined") {
+            window.sessionStorage.removeItem(getProblemInstanceCacheKey(id));
+          }
+        }
+      }
+
       const res = await fetch(`/api/problems/${id}`);
       if (!res.ok) throw new Error("Failed to fetch problem");
       const data = await res.json();
       setProblem(data);
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem(getProblemInstanceCacheKey(id), JSON.stringify(data));
+      }
       setStartTime(Date.now());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -74,7 +99,12 @@ export function useProblem(): UseProblemReturn {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             problemId: problem.id,
-            answer,
+            answer: problem.instance
+              ? {
+                  ...answer,
+                  __instance: problem.instance,
+                }
+              : answer,
             timeSpent,
           }),
         });
@@ -82,6 +112,9 @@ export function useProblem(): UseProblemReturn {
         if (!res.ok) throw new Error("Failed to submit answer");
 
         const data = await res.json();
+        if (typeof window !== "undefined") {
+          window.sessionStorage.removeItem(getProblemInstanceCacheKey(problem.id));
+        }
         setResult({
           isCorrect: data.isCorrect,
           correctAnswer: data.correctAnswer,

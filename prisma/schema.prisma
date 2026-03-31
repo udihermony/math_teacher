@@ -42,6 +42,7 @@ enum ProblemType {
 enum ProblemPurpose {
   PRACTICE
   ASSIGNMENT
+  TEST
 }
 
 enum ClassRole {
@@ -82,6 +83,14 @@ enum TestRequestStatus {
   COMPLETED
 }
 
+enum ContentRequestType {
+  PRACTICE
+  LESSON_QUIZ
+  DEEP_DIVE
+  TOPIC_TEST
+  PHASE_TEST
+}
+
 // ── Users ──────────────────────────────────────────────
 
 enum AIProvider {
@@ -118,6 +127,7 @@ model User {
   coinTransactions       CoinTransaction[]
   conversations          Conversation[]
   testRequests           TestRequest[]
+  contentRequests        ContentRequest[] @relation("RequestedContent")
 }
 
 model StudentProfile {
@@ -158,6 +168,7 @@ model Topic {
   lessons        Lesson[]
   skills         Skill[]
   conversations  Conversation[]
+  contentRequests ContentRequest[]
 }
 
 model Lesson {
@@ -183,6 +194,7 @@ model Lesson {
   createdBy      User?    @relation("CreatedBy", fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  contentRequests ContentRequest[]
 }
 
 model Skill {
@@ -273,6 +285,7 @@ model Class {
   members         ClassMembership[]
   assignments     ClassAssignment[]
   tests           Test[]
+  contentRequests ContentRequest[]
   activeStudents  StudentProfile[]
   coinsExchangeable Boolean         @default(false)
   totalEuros        Float?
@@ -349,6 +362,27 @@ model TestRequest {
 
   @@unique([testId, studentId])
   @@index([studentId, status])
+}
+
+model ContentRequest {
+  id            String             @id @default(cuid())
+  classId       String
+  class         Class              @relation(fields: [classId], references: [id])
+  requestedById String
+  requestedBy   User               @relation("RequestedContent", fields: [requestedById], references: [id])
+  type          ContentRequestType
+  lessonId      String?
+  lesson        Lesson?            @relation(fields: [lessonId], references: [id])
+  topicId       String?
+  topic         Topic?             @relation(fields: [topicId], references: [id])
+  phase         Phase?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@unique([classId, lessonId, type])
+  @@unique([classId, topicId, type])
+  @@unique([classId, phase, type])
+  @@index([classId, createdAt])
 }
 
 // ── Social ────────────────────────────────────────────

@@ -14,6 +14,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { StudentAlerts } from "./StudentAlerts";
 import { ContentStatsCards } from "./ContentStatsCards";
 import { PendingTestRequests } from "./PendingTestRequests";
+import { PendingContentRequests } from "./PendingContentRequests";
 
 interface StudentData {
   userId: string;
@@ -69,6 +70,17 @@ interface ContentStats {
 interface DashboardData {
   classes: ClassData[];
   contentStats: ContentStats;
+  contentRequests: {
+    id: string;
+    type: string;
+    label: string;
+    classId: string;
+    className: string;
+    requestedBy: string;
+    requestedAt: string;
+    targetLabel: string;
+    href: string;
+  }[];
 }
 
 interface Props {
@@ -134,6 +146,8 @@ export function DashboardClient({ userName }: Props) {
 
       {/* Pending test requests */}
       <PendingTestRequests />
+
+      <PendingContentRequests requests={data.contentRequests ?? []} />
 
       {/* Class tabs */}
       {classes.length === 0 ? (

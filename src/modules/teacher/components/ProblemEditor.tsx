@@ -57,6 +57,27 @@ export function ProblemEditor({ initialData, availableSkills, onSave, saving }: 
   const [correctAnswer, setCorrectAnswer] = useState(
     (initialData?.content?.correctAnswer as string) || ""
   );
+  const [useRandomization, setUseRandomization] = useState(
+    Boolean(initialData?.content?.randomization)
+  );
+  const [randomizationJson, setRandomizationJson] = useState(
+    initialData?.content?.randomization
+      ? JSON.stringify(initialData.content.randomization, null, 2)
+      : `{
+  "questionTemplate": "Solve: {{a}}x + {{b}} = {{c}}",
+  "variables": {
+    "a": { "min": 2, "max": 9, "exclude": [0] },
+    "x": { "min": -6, "max": 6 },
+    "b": { "min": -12, "max": 12 },
+    "c": { "formula": "a * x + b" }
+  },
+  "constraints": ["a != 0"],
+  "hintTemplates": ["Subtract {{b}} from both sides"],
+  "solutionTemplates": ["{{a}}x + {{b}} = {{c}}", "{{a}}x = {{c - b}}", "x = {{(c - b) / a}}"],
+  "correctAnswerFormula": "x"
+}`
+  );
+  const [randomizationError, setRandomizationError] = useState<string | null>(null);
 
   function toggleSkill(skillId: string) {
     setSelectedSkills((prev) =>
@@ -78,6 +99,21 @@ export function ProblemEditor({ initialData, availableSkills, onSave, saving }: 
     } else if (type === "FREE_INPUT") {
       content.correctAnswer = correctAnswer;
       content.hints = hints.filter((h) => h.trim());
+    }
+
+    if (useRandomization) {
+      try {
+        const parsedRandomization = JSON.parse(randomizationJson) as Record<string, unknown>;
+        content.randomization = parsedRandomization;
+        setRandomizationError(null);
+      } catch (error) {
+        setRandomizationError(
+          `Randomization JSON is invalid: ${error instanceof Error ? error.message : "Unknown error"}`
+        );
+        return;
+      }
+    } else {
+      setRandomizationError(null);
     }
 
     const data: ProblemData = {
@@ -218,6 +254,49 @@ export function ProblemEditor({ initialData, availableSkills, onSave, saving }: 
           placeholder="e.g. 42 or 2x + 3"
         />
       )}
+
+      <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-semibold">Randomized Numbers</h3>
+            <p className="text-xs text-muted-foreground">
+              Lock the shown numbers per attempt, but generate fresh values on the next attempt.
+            </p>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={useRandomization}
+              onChange={(e) => setUseRandomization(e.target.checked)}
+              className="h-4 w-4"
+            />
+            Enable
+          </label>
+        </div>
+
+        {useRandomization && (
+          <div className="space-y-2">
+            <label htmlFor="randomization" className="block text-sm font-medium">
+              Randomization JSON
+            </label>
+            <textarea
+              id="randomization"
+              value={randomizationJson}
+              onChange={(e) => setRandomizationJson(e.target.value)}
+              rows={14}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-xs outline-none focus:ring-2 focus:ring-ring"
+              placeholder='{"questionTemplate":"Solve: {{a}}x + {{b}} = {{c}}", "variables": {}}'
+            />
+            <p className="text-xs text-muted-foreground">
+              Use `questionTemplate`, `variables`, optional `constraints`, and either
+              `correctAnswerFormula` or `optionTemplates` + `correctIndex`.
+            </p>
+            {randomizationError && (
+              <p className="text-xs text-destructive">{randomizationError}</p>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Hints */}
       <div className="space-y-2">

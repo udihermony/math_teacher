@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { validateProblemContent } from "@/modules/problems/content-validation";
 import { askClaude } from "./claude-client";
 import { buildProblemGeneratorPrompt } from "./prompts/problem-generator";
 
@@ -180,13 +181,17 @@ where <number> is your estimate of how many minutes a student would need to comp
   // Save problems to DB
   const problemIds: string[] = [];
   for (const p of problems) {
+    const validated = validateProblemContent(p.type, p.content);
+    if (!validated.ok) {
+      throw new Error(`Generated test problem is invalid: ${validated.error}`);
+    }
     const problem = await prisma.problem.create({
       data: {
         lessonId,
-        purpose: "ASSIGNMENT",
+        purpose: "TEST",
         type: (p.type as "MULTIPLE_CHOICE" | "FREE_INPUT") || "MULTIPLE_CHOICE",
         difficulty: p.difficulty || 5,
-        content: p.content as never,
+        content: validated.content as never,
         solution: (p.solution as never) ?? undefined,
         commonMistakes: (p.commonMistakes as never) ?? undefined,
       },

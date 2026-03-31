@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef, createContext, useContext } from "react";
+import { useState, useEffect, useRef, createContext, useContext, useCallback } from "react";
 import Link from "next/link";
 import {
   Check,
   ChevronDown,
   ClipboardList,
-  Crown,
   Star,
   BookOpen,
   UserPlus,
@@ -17,6 +16,7 @@ import {
   Dumbbell,
   Play,
   Compass,
+  BellRing,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
 import { TutorialPopup } from "@/modules/tutorial/TutorialPopup";
@@ -31,7 +31,9 @@ interface QuestLesson {
   status: "available" | "in_progress" | "completed";
   problemCount: number;
   completedProblems: number;
-  hasQuiz: boolean;
+  practice: { available: boolean; requested: boolean };
+  quizAvailable: boolean;
+  quizRequested: boolean;
   quizCompleted: boolean;
   quizCorrect: number;
   quizTotal: number;
@@ -39,7 +41,7 @@ interface QuestLesson {
   quizProblemIds: string[];
   coins: { earned: number; total: number };
   hasTutorial: boolean;
-  hasDeepDive: boolean;
+  deepDive: { available: boolean; requested: boolean };
 }
 
 interface QuestTopic {
@@ -49,6 +51,13 @@ interface QuestTopic {
   status: "available" | "in_progress" | "completed";
   lessons: QuestLesson[];
   coins: { earned: number; total: number };
+  test: {
+    available: boolean;
+    passed: boolean;
+    requested: boolean;
+    questionCount: number;
+    passingGrade: number;
+  };
 }
 
 interface QuestPhase {
@@ -57,6 +66,14 @@ interface QuestPhase {
   topics: QuestTopic[];
   coins: { earned: number; total: number };
   perLesson: { practice: number; quiz: number; deepDive: number };
+  test: {
+    available: boolean;
+    passed: boolean;
+    requested: boolean;
+    questionCount: number;
+    passingGrade: number;
+    coins: number;
+  };
 }
 
 interface QuestData {
@@ -101,6 +118,7 @@ const PHASE_COLORS: Record<string, { bg: string; ring: string; text: string }> =
 
 const TutorialContext = createContext<(lessonId: string) => void>(() => {});
 const DeepDiveContext = createContext<(lessonId: string) => void>(() => {});
+const QuestRefreshContext = createContext<() => Promise<void>>(async () => {});
 
 // ── Helpers ──────────────────────────────────────────
 
@@ -117,6 +135,12 @@ export function QuestRoad() {
   const activeRef = useRef<HTMLDivElement>(null);
   const [tutorialLessonId, setTutorialLessonId] = useState<string | null>(null);
   const [deepDiveLessonId, setDeepDiveLessonId] = useState<string | null>(null);
+
+  const refreshQuest = useCallback(async () => {
+    const response = await fetch("/api/student/quest-road");
+    const next = await response.json();
+    setData(next);
+  }, []);
 
   useEffect(() => {
     fetch("/api/student/quest-road")
@@ -148,6 +172,7 @@ export function QuestRoad() {
   return (
     <TutorialContext.Provider value={(id) => setTutorialLessonId(id)}>
     <DeepDiveContext.Provider value={(id) => setDeepDiveLessonId(id)}>
+    <QuestRefreshContext.Provider value={refreshQuest}>
     <div>
       {tutorialLessonId && (
         <TutorialPopup
@@ -160,10 +185,7 @@ export function QuestRoad() {
           lessonId={deepDiveLessonId}
           onClose={() => setDeepDiveLessonId(null)}
           onCoinsEarned={() => {
-            // Refresh data to update coin counts
-            fetch("/api/student/quest-road")
-              .then((r) => r.json())
-              .then((d) => setData(d));
+            refreshQuest();
           }}
         />
       )}
@@ -207,11 +229,10 @@ export function QuestRoad() {
         <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-border" />
 
         <div className="space-y-0">
-          {phases.map((phase, phaseIdx) => (
+          {phases.map((phase) => (
             <PhaseSection
               key={phase.phase}
               phase={phase}
-              isLast={phaseIdx === phases.length - 1}
               activeRef={activeRef}
             />
           ))}
@@ -221,6 +242,7 @@ export function QuestRoad() {
         </div>
       </div>
     </div>
+    </QuestRefreshContext.Provider>
     </DeepDiveContext.Provider>
     </TutorialContext.Provider>
   );
@@ -274,11 +296,9 @@ function FinalTestNode({ finalTest }: { finalTest?: QuestData["finalTest"] }) {
 
 function PhaseSection({
   phase,
-  isLast,
   activeRef,
 }: {
   phase: QuestPhase;
-  isLast: boolean;
   activeRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const colors = PHASE_COLORS[phase.phase] || PHASE_COLORS.PHASE_0;
@@ -344,12 +364,11 @@ function PhaseSection({
       {/* Topics within this phase */}
       {expanded && (
         <div className="ml-3 space-y-1">
-          {phase.topics.map((topic, topicIdx) => (
+          {phase.topics.map((topic) => (
             <TopicSection
               key={topic.id}
               topic={topic}
               phase={phase.phase}
-              isLastTopic={topicIdx === phase.topics.length - 1 && isLast}
               activeRef={activeRef}
             />
           ))}
@@ -361,14 +380,8 @@ function PhaseSection({
 
 function PhaseActions({ phase }: { phase: QuestPhase }) {
   const hasPractice = phase.topics.some((t) =>
-    t.lessons.some((l) => l.problemCount > 0)
+    t.lessons.some((l) => l.practice.available)
   );
-  const allQuizIds = phase.topics
-    .flatMap((t) => t.lessons)
-    .filter((l) => l.hasQuiz)
-    .flatMap((l) => l.quizProblemIds);
-
-  if (!hasPractice && allQuizIds.length === 0) return null;
 
   return (
     <div className="ml-[72px] -mt-2 mb-3 flex items-center gap-2">
@@ -381,15 +394,13 @@ function PhaseActions({ phase }: { phase: QuestPhase }) {
           Practice Level
         </Link>
       )}
-      {allQuizIds.length > 0 && (
-        <Link
-          href={`/practice?ids=${allQuizIds.join(",")}`}
-          className="flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:opacity-90"
-        >
-          <ClipboardList size={12} />
-          Level Test
-        </Link>
-      )}
+      <TestActionButton
+        label={phase.test.passed ? "Retake Level Test" : "Level Test"}
+        requestLabel="Level Test"
+        available={phase.test.available}
+        requested={phase.test.requested}
+        requestBody={{ type: "PHASE_TEST", phase: phase.phase }}
+      />
     </div>
   );
 }
@@ -399,12 +410,10 @@ function PhaseActions({ phase }: { phase: QuestPhase }) {
 function TopicSection({
   topic,
   phase,
-  isLastTopic,
   activeRef,
 }: {
   topic: QuestTopic;
   phase: string;
-  isLastTopic: boolean;
   activeRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const [expanded, setExpanded] = useState(
@@ -480,12 +489,10 @@ function TopicSection({
       {/* Lessons */}
       {expanded && (
         <div className="ml-6 mt-2 space-y-1 border-l border-border pl-4">
-          {topic.lessons.map((lesson, lessonIdx) => (
+          {topic.lessons.map((lesson) => (
             <LessonNode
               key={lesson.id}
               lesson={lesson}
-              phase={phase}
-              isLast={lessonIdx === topic.lessons.length - 1}
             />
           ))}
         </div>
@@ -495,12 +502,7 @@ function TopicSection({
 }
 
 function TopicActions({ topic }: { topic: QuestTopic }) {
-  const hasPractice = topic.lessons.some((l) => l.problemCount > 0);
-  const allQuizIds = topic.lessons
-    .filter((l) => l.hasQuiz)
-    .flatMap((l) => l.quizProblemIds);
-
-  if (!hasPractice && allQuizIds.length === 0) return null;
+  const hasPractice = topic.lessons.some((l) => l.practice.available);
 
   return (
     <div className="ml-14 mt-1 flex items-center gap-2">
@@ -513,15 +515,13 @@ function TopicActions({ topic }: { topic: QuestTopic }) {
           Practice All
         </Link>
       )}
-      {allQuizIds.length > 0 && (
-        <Link
-          href={`/practice?ids=${allQuizIds.join(",")}`}
-          className="flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground hover:opacity-90"
-        >
-          <ClipboardList size={11} />
-          Topic Test
-        </Link>
-      )}
+      <TestActionButton
+        label={topic.test.passed ? "Retake Topic Test" : "Topic Test"}
+        requestLabel="Topic Test"
+        available={topic.test.available}
+        requested={topic.test.requested}
+        requestBody={{ type: "TOPIC_TEST", topicId: topic.id }}
+      />
     </div>
   );
 }
@@ -530,12 +530,8 @@ function TopicActions({ topic }: { topic: QuestTopic }) {
 
 function LessonNode({
   lesson,
-  phase,
-  isLast,
 }: {
   lesson: QuestLesson;
-  phase: string;
-  isLast: boolean;
 }) {
   const progressPct = lesson.problemCount > 0 ? pct(lesson.completedProblems, lesson.problemCount) : 0;
 
@@ -590,7 +586,7 @@ function LessonNode({
       {/* Lesson details row */}
       <div className="ml-10 mt-1 flex items-center gap-3 text-xs text-muted-foreground">
         {/* Practice progress */}
-        {lesson.problemCount > 0 && (
+        {lesson.practice.available && (
           <span className="flex items-center gap-1">
             <BookOpen size={11} />
             {lesson.completedProblems}/{lesson.problemCount}
@@ -598,7 +594,7 @@ function LessonNode({
         )}
 
         {/* Quiz status */}
-        {lesson.hasQuiz && (
+        {lesson.quizAvailable && (
           <span className={`flex items-center gap-1 ${lesson.quizCompleted ? "text-green-500" : ""}`}>
             {lesson.quizCompleted ? <Check size={11} strokeWidth={3} /> : <ClipboardList size={11} />}
             Quiz {lesson.quizCorrect}/{lesson.passingGrade}
@@ -618,27 +614,31 @@ function LessonNode({
           {lesson.hasTutorial && (
             <LearnButton lessonId={lesson.id} />
           )}
-          {lesson.hasDeepDive && (
-            <DeepDiveButton lessonId={lesson.id} />
-          )}
-          {lesson.problemCount > 0 && (
-            <Link
-              href={`/practice?lessonId=${lesson.id}`}
-              className="flex items-center gap-1 rounded-md border border-border bg-secondary px-2 py-1 text-[11px] font-medium text-foreground hover:bg-secondary/80"
-            >
-              <Dumbbell size={11} />
-              Practice
-            </Link>
-          )}
-          {lesson.hasQuiz && (
-            <Link
-              href={`/practice?ids=${lesson.quizProblemIds.join(",")}&passingGrade=${lesson.passingGrade}`}
-              className="flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground hover:opacity-90"
-            >
-              <ClipboardList size={11} />
-              {lesson.quizCompleted ? "Retake Quiz" : "Take Quiz"}
-            </Link>
-          )}
+          <DeepDiveButton
+            lessonId={lesson.id}
+            available={lesson.deepDive.available}
+            requested={lesson.deepDive.requested}
+          />
+          <LessonActionButton
+            available={lesson.practice.available}
+            requested={lesson.practice.requested}
+            label="Practice"
+            requestLabel="Practice"
+            href={`/practice?lessonId=${lesson.id}`}
+            requestBody={{ type: "PRACTICE", lessonId: lesson.id }}
+            variant="secondary"
+            icon={<Dumbbell size={11} />}
+          />
+          <LessonActionButton
+            available={lesson.quizAvailable}
+            requested={lesson.quizRequested}
+            label={lesson.quizCompleted ? "Retake Quiz" : "Take Quiz"}
+            requestLabel="Quiz"
+            href={`/practice?ids=${lesson.quizProblemIds.join(",")}&passingGrade=${lesson.passingGrade}`}
+            requestBody={{ type: "LESSON_QUIZ", lessonId: lesson.id }}
+            variant="primary"
+            icon={<ClipboardList size={11} />}
+          />
         </div>
     </div>
   );
@@ -659,8 +659,47 @@ function LearnButton({ lessonId }: { lessonId: string }) {
   );
 }
 
-function DeepDiveButton({ lessonId }: { lessonId: string }) {
+function DeepDiveButton({
+  lessonId,
+  available,
+  requested,
+}: {
+  lessonId: string;
+  available: boolean;
+  requested: boolean;
+}) {
   const openDeepDive = useContext(DeepDiveContext);
+  const refreshQuest = useContext(QuestRefreshContext);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function requestDeepDive() {
+    if (requested || submitting) return;
+    setSubmitting(true);
+    try {
+      await fetch("/api/student/content-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "DEEP_DIVE", lessonId }),
+      });
+      await refreshQuest();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (!available) {
+    return (
+      <button
+        onClick={requestDeepDive}
+        disabled={requested || submitting}
+        className="flex items-center gap-1 rounded-md border border-dashed border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 hover:bg-amber-100 disabled:cursor-default disabled:opacity-70 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300"
+      >
+        <BellRing size={11} />
+        {requested ? "Deep Dive Requested" : "Request Deep Dive"}
+      </button>
+    );
+  }
+
   return (
     <button
       onClick={() => openDeepDive(lessonId)}
@@ -668,6 +707,122 @@ function DeepDiveButton({ lessonId }: { lessonId: string }) {
     >
       <Compass size={11} />
       Deep Dive
+    </button>
+  );
+}
+
+function LessonActionButton({
+  available,
+  requested,
+  label,
+  requestLabel,
+  href,
+  requestBody,
+  variant,
+  icon,
+}: {
+  available: boolean;
+  requested: boolean;
+  label: string;
+  requestLabel: string;
+  href: string;
+  requestBody: { type: "PRACTICE" | "LESSON_QUIZ"; lessonId: string };
+  variant: "secondary" | "primary";
+  icon: React.ReactNode;
+}) {
+  const refreshQuest = useContext(QuestRefreshContext);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function createRequest() {
+    if (requested || submitting) return;
+    setSubmitting(true);
+    try {
+      await fetch("/api/student/content-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+      await refreshQuest();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (available) {
+    const className = variant === "primary"
+      ? "flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground hover:opacity-90"
+      : "flex items-center gap-1 rounded-md border border-border bg-secondary px-2 py-1 text-[11px] font-medium text-foreground hover:bg-secondary/80";
+    return (
+      <Link href={href} className={className}>
+        {icon}
+        {label}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      onClick={createRequest}
+      disabled={requested || submitting}
+      className="flex items-center gap-1 rounded-md border border-dashed border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 hover:bg-amber-100 disabled:cursor-default disabled:opacity-70 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300"
+    >
+      <BellRing size={11} />
+      {requested ? `${requestLabel} Requested` : `Request ${requestLabel}`}
+    </button>
+  );
+}
+
+function TestActionButton({
+  label,
+  requestLabel,
+  available,
+  requested,
+  requestBody,
+}: {
+  label: string;
+  requestLabel: string;
+  available: boolean;
+  requested: boolean;
+  requestBody: { type: "TOPIC_TEST"; topicId: string } | { type: "PHASE_TEST"; phase: string };
+}) {
+  const refreshQuest = useContext(QuestRefreshContext);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function createRequest() {
+    if (requested || submitting) return;
+    setSubmitting(true);
+    try {
+      await fetch("/api/student/content-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+      await refreshQuest();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (available) {
+    return (
+      <Link
+        href="/tests"
+        className="flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground hover:opacity-90"
+      >
+        <ClipboardList size={11} />
+        {label}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      onClick={createRequest}
+      disabled={requested || submitting}
+      className="flex items-center gap-1 rounded-md border border-dashed border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 hover:bg-amber-100 disabled:cursor-default disabled:opacity-70 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300"
+    >
+      <BellRing size={11} />
+      {requested ? `${requestLabel} Requested` : `Request ${requestLabel}`}
     </button>
   );
 }

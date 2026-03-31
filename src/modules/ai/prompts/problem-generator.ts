@@ -4,32 +4,66 @@
 
 export const PROBLEM_GENERATOR_PROMPT = `You are a math problem generator for MathQuest. Generate practice problems in our exact JSON format.
 
-OUTPUT FORMAT — return a JSON array wrapped in a \`\`\`json code block:
+OUTPUT FORMAT — return a JSON array wrapped in a \`\`\`json code block.
+Prefer RANDOMIZABLE templates when the mathematics allows the same skill to be tested with new numeric values.
+Each stored problem may include a concrete preview plus a \`randomization\` block that defines how fresh values are generated at runtime.
+
+Use \`{{ ... }}\` placeholders inside templates. Inside those placeholders, you may reference variables and arithmetic expressions such as \`{{a}}\`, \`{{b}}\`, \`{{a*x + b}}\`.
+
+OUTPUT EXAMPLES:
 
 \`\`\`json
 [
   {
-    "type": "MULTIPLE_CHOICE",
+    "type": "FREE_INPUT",
     "difficulty": 5,
     "content": {
-      "question": "What is 2 + 3?",
-      "options": ["4", "5", "6", "7"],
-      "correctIndex": 1,
-      "hints": ["Count on from 2"]
+      "question": "Solve: {{a}}x + {{b}} = {{c}}",
+      "correctAnswer": "x",
+      "hints": ["Subtract {{b}} from both sides"],
+      "randomization": {
+        "questionTemplate": "Solve: {{a}}x + {{b}} = {{c}}",
+        "variables": {
+          "a": { "min": 2, "max": 9, "exclude": [0] },
+          "x": { "min": -6, "max": 6 },
+          "b": { "min": -12, "max": 12 },
+          "c": { "formula": "a * x + b" }
+        },
+        "constraints": ["a != 0"],
+        "hintTemplates": ["Subtract {{b}} from both sides"],
+        "solutionTemplates": [
+          "{{a}}x + {{b}} = {{c}}",
+          "{{a}}x = {{c - b}}",
+          "x = {{(c - b) / a}}"
+        ],
+        "correctAnswerFormula": "x"
+      }
     },
-    "solution": { "steps": ["Start at 2", "Count up 3: 3, 4, 5", "Answer: 5"] },
-    "commonMistakes": { "patterns": ["Off-by-one error"] }
+    "solution": { "steps": ["{{a}}x + {{b}} = {{c}}", "{{a}}x = {{c - b}}", "x = {{(c - b) / a}}"] },
+    "commonMistakes": { "patterns": ["Adding {{b}} instead of subtracting it", "Forgetting to divide by {{a}}"] }
   },
   {
-    "type": "FREE_INPUT",
+    "type": "MULTIPLE_CHOICE",
     "difficulty": 6,
     "content": {
-      "question": "Solve: 3x + 6 = 15",
-      "correctAnswer": "3",
-      "hints": ["First subtract 6 from both sides"]
+      "question": "A rectangle has width {{w}} cm and length {{l}} cm. What is its area?",
+      "options": ["{{w + l}} cm^2", "{{w * l}} cm^2", "{{2 * (w + l)}} cm^2", "{{l - w}} cm^2"],
+      "correctIndex": 1,
+      "hints": ["Area of a rectangle is length × width"],
+      "randomization": {
+        "questionTemplate": "A rectangle has width {{w}} cm and length {{l}} cm. What is its area?",
+        "variables": {
+          "w": { "min": 2, "max": 12 },
+          "l": { "min": 3, "max": 15 }
+        },
+        "constraints": ["l > w"],
+        "optionTemplates": ["{{w + l}} cm^2", "{{w * l}} cm^2", "{{2 * (w + l)}} cm^2", "{{l - w}} cm^2"],
+        "correctIndex": 1,
+        "hintTemplates": ["Area of a rectangle is length × width"]
+      }
     },
-    "solution": { "steps": ["3x + 6 = 15", "3x = 9", "x = 3"] },
-    "commonMistakes": { "patterns": ["Forgetting to divide by coefficient"] }
+    "solution": { "steps": ["Area = length × width", "{{l}} × {{w}} = {{l * w}}", "Answer: {{l * w}} cm^2"] },
+    "commonMistakes": { "patterns": ["Confusing area with perimeter", "Adding the side lengths instead of multiplying"] }
   }
 ]
 \`\`\`
@@ -41,7 +75,11 @@ RULES:
 4. For MULTIPLE_CHOICE: always 4 options, distractors should be plausible (based on common mistakes).
 5. For FREE_INPUT: correctAnswer must be the simplest form.
 6. Mix problem types unless specifically told otherwise.
-7. Output ONLY the JSON code block — no additional commentary.`;
+7. When a skill can be re-tested with fresh numbers, include \`content.randomization\`.
+8. Keep generated numbers student-friendly unless the prompt explicitly asks for messy decimals or fractions.
+9. Use constraints to avoid invalid cases such as division by zero, duplicate multiple-choice options, or ambiguous answers.
+10. Only omit \`content.randomization\` when the problem truly needs fixed values, proof, or a specific real-world data set.
+11. Output ONLY the JSON code block — no additional commentary.`;
 
 export function buildProblemGeneratorPrompt(params: {
   topic: string;
@@ -64,5 +102,6 @@ GENERATE:
 - Count: ${params.count} problems
 - Difficulty range: ${params.difficultyMin}-${params.difficultyMax}
 - Types: ${typeStr}
+- Randomization policy: Prefer reusable parameterized templates that regenerate numeric values on each new attempt while keeping the same skill and difficulty.
 ${params.additionalInstructions ? `- Additional: ${params.additionalInstructions}` : ""}`;
 }

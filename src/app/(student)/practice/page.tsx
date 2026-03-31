@@ -42,6 +42,11 @@ interface ProblemData {
   difficulty: number;
   content: Record<string, unknown>;
   solution?: { steps: string[] } | null;
+  instance?: {
+    seed: string;
+    variables?: Record<string, number>;
+    content: Record<string, unknown>;
+  };
   lesson?: { title: string } | null;
   skills?: { skill: { name: string } }[];
   solvedByUser?: boolean;
@@ -241,6 +246,7 @@ function PracticeInner() {
 
   const currentProblemData = problemQueue[queueIndex] as ProblemData | undefined;
   const isLastProblem = queueIndex >= problemQueue.length - 1;
+  const modeTitle = isQuizMode ? "Quiz" : "Practice";
 
   // No params → topic browser
   if (!hasPracticeParams) {
@@ -299,7 +305,8 @@ function PracticeInner() {
       )}
 
       {/* Header */}
-      <div className="mb-4 flex items-center justify-between">
+      <div className={`mb-4 ${isQuizMode ? "rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/20" : ""}`}>
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.push(isQuizMode ? "/dashboard" : "/practice")}
@@ -311,18 +318,23 @@ function PracticeInner() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold">
-                {isQuizMode ? "Quiz" : "Practice"}
+                {modeTitle}
               </h1>
               {isQuizMode && (
                 <span className="rounded bg-amber-200 px-2 py-0.5 text-xs font-semibold uppercase text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
                   <ClipboardList size={12} className="mr-1 inline" />
-                  {problemQueue.length} Questions
+                  Assessment Mode
                 </span>
               )}
             </div>
             {currentProblemData?.lesson && (
               <p className="text-sm text-muted-foreground">
                 {currentProblemData.lesson.title}
+              </p>
+            )}
+            {isQuizMode && (
+              <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                Quiz questions are fixed for this attempt and graded as an assessment.
               </p>
             )}
           </div>
@@ -346,11 +358,14 @@ function PracticeInner() {
           )}
         </div>
       </div>
+      </div>
 
       {/* XP bar */}
-      <div className="mb-4">
-        <XPBar level={currentXP.level} xp={currentXP.xp} progress={currentXP.progress} xpToNext={currentXP.xpToNext} compact />
-      </div>
+      {!isQuizMode && (
+        <div className="mb-4">
+          <XPBar level={currentXP.level} xp={currentXP.xp} progress={currentXP.progress} xpToNext={currentXP.xpToNext} compact />
+        </div>
+      )}
 
       {/* Practice mode: clickable dots with difficulty colors and solved indicators */}
       {!isQuizMode && (
@@ -427,7 +442,9 @@ function PracticeInner() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.2 }}
-            className="rounded-xl border border-border bg-card p-6"
+            className={isQuizMode
+              ? "rounded-2xl border-2 border-amber-200 bg-card p-6 shadow-lg dark:border-amber-900/50"
+              : "rounded-xl border border-border bg-card p-6"}
           >
             {/* Difficulty indicator + Tutorial button */}
             <div className="mb-4 flex items-center gap-2">
@@ -447,7 +464,7 @@ function PracticeInner() {
                   {s.skill.name}
                 </Badge>
               ))}
-              {lessonId && (
+              {lessonId && !isQuizMode && (
                 <div className="ml-auto flex items-center gap-1.5">
                   <button
                     onClick={() => setShowTutorial(true)}

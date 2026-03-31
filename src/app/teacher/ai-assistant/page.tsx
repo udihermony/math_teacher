@@ -342,20 +342,37 @@ function AIAssistantInner() {
       return `Problem #${idx + 1}: missing "content" object`;
     }
     const content = p.content as Record<string, unknown>;
-    if (!content.question || typeof content.question !== "string") {
-      return `Problem #${idx + 1}: content.question is missing or not a string`;
+    const randomization =
+      content.randomization && typeof content.randomization === "object"
+        ? (content.randomization as Record<string, unknown>)
+        : null;
+    const hasQuestionTemplate =
+      typeof content.question === "string" ||
+      typeof randomization?.questionTemplate === "string";
+    if (!hasQuestionTemplate) {
+      return `Problem #${idx + 1}: content.question or content.randomization.questionTemplate is required`;
     }
     if (p.type === "MULTIPLE_CHOICE") {
-      if (!Array.isArray(content.options) || content.options.length < 2) {
-        return `Problem #${idx + 1}: MULTIPLE_CHOICE must have content.options array (at least 2)`;
+      const hasOptions =
+        (Array.isArray(content.options) && content.options.length >= 2) ||
+        (Array.isArray(randomization?.optionTemplates) &&
+          (randomization?.optionTemplates as unknown[]).length >= 2);
+      if (!hasOptions) {
+        return `Problem #${idx + 1}: MULTIPLE_CHOICE must have content.options or content.randomization.optionTemplates (at least 2)`;
       }
-      if (typeof content.correctIndex !== "number") {
-        return `Problem #${idx + 1}: MULTIPLE_CHOICE must have content.correctIndex (number)`;
+      if (
+        typeof content.correctIndex !== "number" &&
+        typeof randomization?.correctIndex !== "number"
+      ) {
+        return `Problem #${idx + 1}: MULTIPLE_CHOICE must have content.correctIndex or content.randomization.correctIndex`;
       }
     }
     if (p.type === "FREE_INPUT") {
-      if (!content.correctAnswer) {
-        return `Problem #${idx + 1}: FREE_INPUT must have content.correctAnswer`;
+      if (
+        !content.correctAnswer &&
+        typeof randomization?.correctAnswerFormula !== "string"
+      ) {
+        return `Problem #${idx + 1}: FREE_INPUT must have content.correctAnswer or content.randomization.correctAnswerFormula`;
       }
     }
     return null;
@@ -602,7 +619,7 @@ function AIAssistantInner() {
         const hasLesson = code.includes('"blocks"') && (code.includes('"title"') || code.includes('"topic"') || code.includes('"learningObjectives"'));
         const hasProblems =
           code.includes('"difficulty"') &&
-          (code.includes('"correctIndex"') || code.includes('"correctAnswer"'));
+          (code.includes('"correctIndex"') || code.includes('"correctAnswer"') || code.includes('"randomization"'));
 
         return (
           <div key={i} className="relative my-3">

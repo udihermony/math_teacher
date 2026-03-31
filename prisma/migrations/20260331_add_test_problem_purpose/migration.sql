@@ -1,0 +1,1 @@
+ALTER TYPE "ProblemPurpose" ADD VALUE IF NOT EXISTS 'TEST';

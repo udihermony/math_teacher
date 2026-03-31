@@ -28,7 +28,7 @@ export function coinsForDifficulty(difficulty: number): number {
 /** Max practice coins earnable for a lesson, scaled by phase. */
 export function maxPracticeCoins(phase: string): number {
   const mult = PHASE_MULTIPLIER[phase] ?? 1;
-  return Math.round(20 * mult);
+  return Math.round(30 * mult);
 }
 
 /** Lesson quiz completion bonus, scaled by phase. Every lesson assumed to have one. */
@@ -281,7 +281,7 @@ export async function totalPossibleCoins(classId: string): Promise<{
     where: { phase: { in: phases as never } },
     include: {
       lessons: {
-        select: { id: true, coinableCount: true, deepDive: true },
+        select: { id: true, coinableCount: true },
       },
     },
   });
@@ -302,9 +302,7 @@ export async function totalPossibleCoins(classId: string): Promise<{
     for (const lesson of topic.lessons) {
       practice += lesson.coinableCount ?? maxPracticeCoins(phase);
       quizBonuses += quizBonus(phase);
-      if (lesson.deepDive) {
-        deepDiveBonuses += deepDiveBonus(phase);
-      }
+      deepDiveBonuses += deepDiveBonus(phase);
     }
     topicBonuses += topicBonus(phase);
     testTopicBonuses += testTopicBonus(phase);

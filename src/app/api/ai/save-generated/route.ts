@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireTeacher } from "@/lib/teacher-auth";
+import { validateProblemContent } from "@/modules/problems/content-validation";
 
 const problemSchema = z.object({
   type: z.enum(["MULTIPLE_CHOICE", "FREE_INPUT", "DRAG_AND_DROP", "GRAPHING", "PROOF_BUILDER", "WORKED_SOLUTION"]),
@@ -83,12 +84,16 @@ export async function POST(request: NextRequest) {
     let problemCount = 0;
     if (data.problems && data.problems.length > 0) {
       for (const p of data.problems) {
+        const validated = validateProblemContent(p.type, p.content);
+        if (!validated.ok) {
+          return Response.json({ error: validated.error }, { status: 400 });
+        }
         await prisma.problem.create({
           data: {
             lessonId: lesson.id,
             type: p.type,
             difficulty: p.difficulty,
-            content: p.content as never,
+            content: validated.content as never,
             solution: p.solution as never ?? undefined,
             commonMistakes: p.commonMistakes as never ?? undefined,
           },
@@ -109,13 +114,17 @@ export async function POST(request: NextRequest) {
 
     const created = [];
     for (const p of data) {
+      const validated = validateProblemContent(p.type, p.content);
+      if (!validated.ok) {
+        return Response.json({ error: validated.error }, { status: 400 });
+      }
       const problem = await prisma.problem.create({
         data: {
           lessonId: lessonId || null,
           purpose,
           type: p.type,
           difficulty: p.difficulty,
-          content: p.content as never,
+          content: validated.content as never,
           solution: p.solution as never ?? undefined,
           commonMistakes: p.commonMistakes as never ?? undefined,
         },

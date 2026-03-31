@@ -23,6 +23,10 @@ interface TopicData {
   collected: number;
   redeemable: boolean;
   possible: number;
+  testAvailable: boolean;
+  testRequested: boolean;
+  topicBonus: { earned: number; possible: number };
+  testBonus: { earned: number; possible: number };
   lessons: LessonCoin[];
 }
 
@@ -30,6 +34,8 @@ interface PhaseData {
   phase: string;
   label: string;
   testPassed: boolean;
+  testAvailable: boolean;
+  testRequested: boolean;
   testBonus: { earned: number; possible: number };
   perLesson: { practice: number; quiz: number; deepDive: number };
   topics: TopicData[];
@@ -96,7 +102,8 @@ export default function BankPage() {
   function togglePhase(phase: string) {
     setExpandedPhases((prev) => {
       const next = new Set(prev);
-      next.has(phase) ? next.delete(phase) : next.add(phase);
+      if (next.has(phase)) next.delete(phase);
+      else next.add(phase);
       return next;
     });
   }
@@ -104,7 +111,8 @@ export default function BankPage() {
   function toggleTopic(topicId: string) {
     setExpandedTopics((prev) => {
       const next = new Set(prev);
-      next.has(topicId) ? next.delete(topicId) : next.add(topicId);
+      if (next.has(topicId)) next.delete(topicId);
+      else next.add(topicId);
       return next;
     });
   }
@@ -245,7 +253,11 @@ export default function BankPage() {
 
                         {!topic.redeemable && (
                           <p className="ml-10 text-xs text-muted-foreground">
-                            Pass the topic test to unlock these coins
+                            {topic.testAvailable
+                              ? "Pass the topic test to unlock these coins"
+                              : topic.testRequested
+                              ? "Topic test requested from your teacher"
+                              : "Topic test has not been created yet"}
                           </p>
                         )}
 
@@ -268,6 +280,14 @@ export default function BankPage() {
                                 </div>
                               </div>
                             ))}
+                            <div className="flex items-center justify-between rounded px-2 py-1 text-xs text-muted-foreground">
+                              <span>Topic Completion Bonus</span>
+                              <span>{topic.topicBonus.earned}/{topic.topicBonus.possible}</span>
+                            </div>
+                            <div className="flex items-center justify-between rounded px-2 py-1 text-xs text-muted-foreground">
+                              <span>Topic Test Bonus</span>
+                              <span>{topic.testBonus.earned}/{topic.testBonus.possible}</span>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -284,6 +304,13 @@ export default function BankPage() {
                       {phase.testBonus.earned} / {phase.testBonus.possible}
                     </span>
                   </div>
+                  {!phase.testPassed && !phase.testAvailable && (
+                    <p className="px-2 text-xs text-muted-foreground">
+                      {phase.testRequested
+                        ? "Level test requested from your teacher"
+                        : "Level test has not been created yet"}
+                    </p>
+                  )}
                 </div>
               )}
             </Card>

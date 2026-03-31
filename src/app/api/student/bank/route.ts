@@ -85,7 +85,6 @@ export async function GET() {
           id: true,
           title: true,
           coinableCount: true,
-          deepDive: true,
           assignments: {
             where: { classId: cls.id },
             select: { id: true },
@@ -105,7 +104,8 @@ export async function GET() {
   });
 
   // Determine which topics have been unlocked (topic test passed)
-  const topicTests = await prisma.testRequest.findMany({
+  const [topicTests, phaseTests, activeTests, contentRequests] = await Promise.all([
+    prisma.testRequest.findMany({
     where: {
       studentId: userId,
       status: "COMPLETED",
@@ -117,7 +117,32 @@ export async function GET() {
     include: {
       test: { select: { scopeId: true, passingGrade: true, questionCount: true } },
     },
-  });
+    }),
+    prisma.testRequest.findMany({
+      where: {
+        studentId: userId,
+        status: "COMPLETED",
+        test: {
+          classId: cls.id,
+          scope: "PHASE",
+        },
+      },
+      include: {
+        test: { select: { scopeId: true, passingGrade: true, questionCount: true } },
+      },
+    }),
+    prisma.test.findMany({
+      where: {
+        classId: cls.id,
+        status: { not: "ARCHIVED" },
+      },
+      select: { scope: true, scopeId: true },
+    }),
+    prisma.contentRequest.findMany({
+      where: { classId: cls.id },
+      select: { type: true, topicId: true, phase: true },
+    }),
+  ]);
 
   const unlockedTopicIds = new Set<string>();
   for (const tr of topicTests) {
@@ -128,20 +153,6 @@ export async function GET() {
   }
 
   // Check which phase tests have been passed
-  const phaseTests = await prisma.testRequest.findMany({
-    where: {
-      studentId: userId,
-      status: "COMPLETED",
-      test: {
-        classId: cls.id,
-        scope: "PHASE",
-      },
-    },
-    include: {
-      test: { select: { scopeId: true, passingGrade: true, questionCount: true } },
-    },
-  });
-
   const passedPhases = new Set<string>();
   for (const tr of phaseTests) {
     const passingGrade = tr.test.passingGrade ?? tr.test.questionCount;
@@ -149,6 +160,23 @@ export async function GET() {
       passedPhases.add(tr.test.scopeId);
     }
   }
+
+  const activeTopicTestIds = new Set(
+    activeTests.filter((test) => test.scope === "TOPIC").map((test) => test.scopeId)
+  );
+  const activePhaseTestIds = new Set(
+    activeTests.filter((test) => test.scope === "PHASE").map((test) => test.scopeId)
+  );
+  const requestedTopicTestIds = new Set(
+    contentRequests
+      .filter((request) => request.type === "TOPIC_TEST" && request.topicId)
+      .map((request) => request.topicId as string)
+  );
+  const requestedPhaseTestIds = new Set(
+    contentRequests
+      .filter((request) => request.type === "PHASE_TEST" && request.phase)
+      .map((request) => request.phase as string)
+  );
 
   // Build lesson-to-topic mapping for redeemability lookups
   const lessonToTopic = new Map<string, string>();
@@ -225,7 +253,7 @@ export async function GET() {
       const lessons = topic.lessons.map((lesson) => {
         const maxPractice = lesson.coinableCount ?? maxPracticeCoins(phase);
         const maxQuiz = quizBonus(phase);
-        const maxDeepDive = lesson.deepDive ? deepDiveBonus(phase) : 0;
+        const maxDeepDive = deepDiveBonus(phase);
 
         const practiceEarned = coinTransactions
           .filter((tx) => tx.reason === "CORRECT_ANSWER" && tx.sourceId === lesson.id)
@@ -261,6 +289,24 @@ export async function GET() {
         collected,
         redeemable: unlockedTopicIds.has(topic.id),
         possible,
+        testAvailable: activeTopicTestIds.has(topic.id),
+        testRequested: requestedTopicTestIds.has(topic.id),
+        topicBonus: {
+          earned: coinTransactions
+            .filter((tx) => tx.reason === "TOPIC_COMPLETE" && tx.sourceId === topic.id)
+            .reduce((sum, tx) => sum + tx.amount, 0),
+          possible: topicBonus(phase),
+        },
+        testBonus: {
+          earned: coinTransactions
+            .filter((tx) => tx.reason === "TEST_TOPIC_PASS")
+            .filter((tx) => {
+              const match = topicTests.find((test) => test.id === tx.sourceId);
+              return match?.test.scopeId === topic.id;
+            })
+            .reduce((sum, tx) => sum + tx.amount, 0),
+          possible: testTopicBonus(phase),
+        },
         lessons,
       };
     });
@@ -276,6 +322,8 @@ export async function GET() {
       phase,
       label: PHASE_LABELS[phase] ?? phase,
       testPassed: passedPhases.has(phase),
+      testAvailable: activePhaseTestIds.has(phase),
+      testRequested: requestedPhaseTestIds.has(phase),
       testBonus: {
         earned: phaseTestBonusEarned ? testPhaseBonus(phase) : 0,
         possible: testPhaseBonus(phase),

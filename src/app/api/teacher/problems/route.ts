@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireTeacher } from "@/lib/teacher-auth";
+import { validateProblemContent } from "@/modules/problems/content-validation";
 
 const createProblemSchema = z.object({
   lessonId: z.string().optional(),
@@ -54,11 +55,15 @@ export async function POST(request: NextRequest) {
   }
 
   const { skillIds, ...data } = parsed.data;
+  const validated = validateProblemContent(data.type, data.content);
+  if (!validated.ok) {
+    return Response.json({ error: validated.error }, { status: 400 });
+  }
 
   const problem = await prisma.problem.create({
     data: {
       ...data,
-      content: data.content as never,
+      content: validated.content as never,
       commonMistakes: data.commonMistakes as never,
       solution: data.solution as never,
       ...(skillIds && skillIds.length > 0

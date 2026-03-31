@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { requireTeacher } from "@/lib/teacher-auth";
+import { PHASE_LABELS, getContentRequestLabel, getTeacherContentRequestHref } from "@/modules/content-requests";
 
 export async function GET() {
   const session = await requireTeacher();
@@ -206,12 +207,92 @@ export async function GET() {
   });
 
   // Content stats (global)
-  const [topicCount, lessonCount, practiceCount, assignmentCount] = await Promise.all([
+  const [topicCount, lessonCount, practiceCount, assignmentCount, contentRequests, activeTests, practiceLessons, quizAssignments] = await Promise.all([
     prisma.topic.count(),
     prisma.lesson.count(),
     prisma.problem.count({ where: { purpose: "PRACTICE" } }),
     prisma.problem.count({ where: { purpose: "ASSIGNMENT" } }),
+    prisma.contentRequest.findMany({
+      where: { classId: { in: classIds } },
+      include: {
+        class: { select: { id: true, name: true } },
+        requestedBy: { select: { id: true, name: true } },
+        lesson: { select: { id: true, title: true, deepDive: true } },
+        topic: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.test.findMany({
+      where: {
+        classId: { in: classIds },
+        status: { not: "ARCHIVED" },
+      },
+      select: { classId: true, scope: true, scopeId: true },
+    }),
+    prisma.problem.findMany({
+      where: {
+        purpose: "PRACTICE",
+        lessonId: { not: null },
+      },
+      select: { lessonId: true },
+      distinct: ["lessonId"],
+    }),
+    prisma.classAssignment.findMany({
+      where: { classId: { in: classIds } },
+      select: { classId: true, lessonId: true },
+    }),
   ]);
+
+  const testKeySet = new Set(activeTests.map((test) => `${test.classId}:${test.scope}:${test.scopeId}`));
+  const practiceLessonIdSet = new Set(practiceLessons.map((problem) => problem.lessonId).filter(Boolean));
+  const quizAssignmentKeySet = new Set(quizAssignments.map((assignment) => `${assignment.classId}:${assignment.lessonId}`));
+
+  const pendingContentRequests = contentRequests
+    .filter((request) => {
+      if (request.type === "PRACTICE") {
+        return !!request.lessonId && !practiceLessonIdSet.has(request.lessonId);
+      }
+      if (request.type === "LESSON_QUIZ") {
+        return !!request.lessonId && !quizAssignmentKeySet.has(`${request.classId}:${request.lessonId}`);
+      }
+      if (request.type === "DEEP_DIVE") {
+        return !!request.lesson && !request.lesson.deepDive;
+      }
+      if (request.type === "TOPIC_TEST" && request.topicId) {
+        return !testKeySet.has(`${request.classId}:TOPIC:${request.topicId}`);
+      }
+      if (request.type === "PHASE_TEST" && request.phase) {
+        return !testKeySet.has(`${request.classId}:PHASE:${request.phase}`);
+      }
+      return false;
+    })
+    .map((request) => {
+      const targetLabel = request.type === "PRACTICE" || request.type === "LESSON_QUIZ" || request.type === "DEEP_DIVE"
+        ? request.lesson?.title ?? "Lesson"
+        : request.type === "TOPIC_TEST"
+        ? request.topic?.name ?? "Topic"
+        : request.phase
+        ? PHASE_LABELS[request.phase]
+        : "Phase";
+
+      return {
+        id: request.id,
+        type: request.type,
+        label: getContentRequestLabel(request.type),
+        classId: request.classId,
+        className: request.class.name,
+        requestedBy: request.requestedBy.name,
+        requestedAt: request.createdAt.toISOString(),
+        targetLabel,
+        href: getTeacherContentRequestHref({
+          classId: request.classId,
+          type: request.type,
+          lessonId: request.lessonId,
+          topicId: request.topicId,
+          phase: request.phase,
+        }),
+      };
+    });
 
   return Response.json({
     classes: classesData,
@@ -222,5 +303,6 @@ export async function GET() {
       practiceProblems: practiceCount,
       assignmentProblems: assignmentCount,
     },
+    contentRequests: pendingContentRequests,
   });
 }

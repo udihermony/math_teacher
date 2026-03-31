@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireTeacher } from "@/lib/teacher-auth";
+import { validateProblemContent } from "@/modules/problems/content-validation";
 
 const updateProblemSchema = z.object({
   type: z.enum(["MULTIPLE_CHOICE", "FREE_INPUT", "DRAG_AND_DROP", "GRAPHING", "PROOF_BUILDER", "WORKED_SOLUTION"]).optional(),
@@ -46,6 +47,21 @@ export async function PATCH(
   if (!parsed.success) return Response.json({ error: "Invalid input" }, { status: 400 });
 
   const { skillIds, ...data } = parsed.data;
+  if (data.type || data.content) {
+    const existing = await prisma.problem.findUnique({
+      where: { id: problemId },
+      select: { type: true, content: true },
+    });
+    if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
+
+    const nextType = data.type ?? existing.type;
+    const nextContent = (data.content ?? (existing.content as Record<string, unknown>)) as Record<string, unknown>;
+    const validated = validateProblemContent(nextType, nextContent);
+    if (!validated.ok) {
+      return Response.json({ error: validated.error }, { status: 400 });
+    }
+    data.content = validated.content;
+  }
 
   // Cast JSON fields
   const updateData: Record<string, unknown> = { ...data };

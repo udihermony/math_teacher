@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Plus, Search, Loader2, BookOpen, AlertTriangle, Link2, Zap, PlayCircle, Eye, Compass, ClipboardCopy, Check } from "lucide-react";
 import { TutorialChatModal } from "@/modules/tutorial/TutorialChatModal";
@@ -67,6 +67,7 @@ export default function EditLessonPage({
 }) {
   const { lessonId } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [lesson, setLesson] = useState<LessonData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -90,6 +91,12 @@ export default function EditLessonPage({
         setLoading(false);
       });
   }, [lessonId]);
+
+  useEffect(() => {
+    if (searchParams.get("open") === "deep-dive") {
+      setDeepDiveOpen(true);
+    }
+  }, [searchParams]);
 
   async function handleSave(data: {
     title: string;
@@ -567,8 +574,20 @@ export default function EditLessonPage({
                   className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-secondary/50"
                 >
                   <Badge variant="default">{problem.type}</Badge>
-                  <Badge variant={problem.purpose === "ASSIGNMENT" ? "warning" : "success"}>
-                    {problem.purpose === "ASSIGNMENT" ? "Assignment" : "Practice"}
+                  <Badge
+                    variant={
+                      problem.purpose === "ASSIGNMENT"
+                        ? "warning"
+                        : problem.purpose === "TEST"
+                        ? "default"
+                        : "success"
+                    }
+                  >
+                    {problem.purpose === "ASSIGNMENT"
+                      ? "Assignment"
+                      : problem.purpose === "TEST"
+                      ? "Test"
+                      : "Practice"}
                   </Badge>
                   <span className="flex-1 text-sm truncate">{question}</span>
                   <span className="text-xs text-muted-foreground">

@@ -273,7 +273,7 @@ function AssignModal({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [questionCount, setQuestionCount] = useState(lesson.assignmentCount || 5);
   const [passingGrade, setPassingGrade] = useState(lesson.assignmentCount || 5);
-  const [practicePayableCount, setPracticePayableCount] = useState(lesson.practiceCount || 10);
+  const [practicePayableCount, setPracticePayableCount] = useState(lesson.practiceCount || 30);
 
   // Keep passingGrade in sync when questionCount changes
   const effectiveQC = questionCount;
