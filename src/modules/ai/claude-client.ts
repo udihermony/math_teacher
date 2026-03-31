@@ -71,7 +71,12 @@ function isProviderError(err: unknown): boolean {
       msg.includes("rate limit") ||
       msg.includes("billing") ||
       msg.includes("insufficient") ||
-      msg.includes("exceeded")
+      msg.includes("exceeded") ||
+      msg.includes("econnrefused") ||
+      msg.includes("enotfound") ||
+      msg.includes("etimedout") ||
+      msg.includes("connection error") ||
+      msg.includes("fetch failed")
     ) return true;
   }
   return false;
@@ -224,13 +229,23 @@ async function askGemini(
 
 const LOCAL_MODEL = process.env.LOCAL_LLM_MODEL || "qwen3-14b-claude-4.5-opus-high-reasoning-distill";
 
+function localBaseURL(baseURL: string): string {
+  // Normalize: strip trailing slash, append /v1 if not already present
+  const url = baseURL.replace(/\/+$/, "");
+  return url.endsWith("/v1") ? url : `${url}/v1`;
+}
+
 async function askLocal(
   baseURL: string,
   systemPrompt: string,
   messages: { role: "user" | "assistant"; content: string }[],
   maxTokens: number
 ): Promise<AIResponse> {
-  const client = new OpenAI({ apiKey: "not-needed", baseURL: `${baseURL}/v1` });
+  const client = new OpenAI({
+    apiKey: "not-needed",
+    baseURL: localBaseURL(baseURL),
+    timeout: 30_000,
+  });
   const response = await client.chat.completions.create({
     model: LOCAL_MODEL,
     max_tokens: maxTokens,
@@ -255,7 +270,11 @@ async function* streamLocal(
   messages: { role: "user" | "assistant"; content: string }[],
   maxTokens: number
 ): AsyncGenerator<string> {
-  const client = new OpenAI({ apiKey: "not-needed", baseURL: `${baseURL}/v1` });
+  const client = new OpenAI({
+    apiKey: "not-needed",
+    baseURL: localBaseURL(baseURL),
+    timeout: 30_000,
+  });
   const stream = await client.chat.completions.create({
     model: LOCAL_MODEL,
     max_tokens: maxTokens,
