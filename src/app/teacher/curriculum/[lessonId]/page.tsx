@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus, Search, Loader2, BookOpen, AlertTriangle, Link2, Zap, PlayCircle, Eye, Compass } from "lucide-react";
+import { ArrowLeft, Plus, Search, Loader2, BookOpen, AlertTriangle, Link2, Zap, PlayCircle, Eye, Compass, ClipboardCopy, Check } from "lucide-react";
 import { TutorialChatModal } from "@/modules/tutorial/TutorialChatModal";
 import { DeepDiveChatModal } from "@/modules/deep-dive/DeepDiveChatModal";
 import { TutorialRenderer } from "@/modules/tutorial/TutorialRenderer";
@@ -80,6 +80,7 @@ export default function EditLessonPage({
   const [tutorialPreview, setTutorialPreview] = useState(false);
   const [deepDiveOpen, setDeepDiveOpen] = useState(false);
   const [deepDivePreview, setDeepDivePreview] = useState(false);
+  const [copiedPrompt, setCopiedPrompt] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/teacher/lessons/${lessonId}`)
@@ -150,6 +151,33 @@ export default function EditLessonPage({
     setResearching(false);
   }
 
+  async function handleCopyPrompt(type: "tutorial" | "deep-dive" | "research") {
+    try {
+      const url = type === "research"
+        ? `/api/teacher/lessons/${lessonId}/research`
+        : `/api/ai/${type}`;
+      const body = type === "research"
+        ? { promptOnly: true }
+        : {
+            lessonId,
+            messages: [{ role: "user", content: type === "tutorial" ? "Generate a tutorial for this lesson." : "Create a Deep Dive for this lesson." }],
+            promptOnly: true,
+          };
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      await navigator.clipboard.writeText(data.fullPrompt);
+      setCopiedPrompt(type);
+      setTimeout(() => setCopiedPrompt(null), 2000);
+    } catch {
+      // silent fail
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -193,23 +221,33 @@ export default function EditLessonPage({
               Uses web search to research this topic and generate skills + learning context
             </p>
           </div>
-          <button
-            onClick={handleResearch}
-            disabled={researching}
-            className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-          >
-            {researching ? (
-              <>
-                <Loader2 size={14} className="animate-spin" />
-                Researching...
-              </>
-            ) : (
-              <>
-                <Search size={14} />
-                Research
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleCopyPrompt("research")}
+              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary"
+              title="Copy the full AI prompt for use with an external LLM"
+            >
+              {copiedPrompt === "research" ? <Check size={14} /> : <ClipboardCopy size={14} />}
+              {copiedPrompt === "research" ? "Copied!" : "Copy Prompt"}
+            </button>
+            <button
+              onClick={handleResearch}
+              disabled={researching}
+              className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              {researching ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  Researching...
+                </>
+              ) : (
+                <>
+                  <Search size={14} />
+                  Research
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         {researchError && (
@@ -328,6 +366,14 @@ export default function EditLessonPage({
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleCopyPrompt("tutorial")}
+              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary"
+              title="Copy the full AI prompt for use with an external LLM"
+            >
+              {copiedPrompt === "tutorial" ? <Check size={14} /> : <ClipboardCopy size={14} />}
+              {copiedPrompt === "tutorial" ? "Copied!" : "Copy Prompt"}
+            </button>
             {lesson.tutorial && (
               <button
                 onClick={() => setTutorialPreview(true)}
@@ -400,6 +446,14 @@ export default function EditLessonPage({
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleCopyPrompt("deep-dive")}
+              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary"
+              title="Copy the full AI prompt for use with an external LLM"
+            >
+              {copiedPrompt === "deep-dive" ? <Check size={14} /> : <ClipboardCopy size={14} />}
+              {copiedPrompt === "deep-dive" ? "Copied!" : "Copy Prompt"}
+            </button>
             {lesson.deepDive && (
               <button
                 onClick={() => setDeepDivePreview(true)}

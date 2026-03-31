@@ -16,9 +16,11 @@ import {
   Trophy,
   Dumbbell,
   Play,
+  Compass,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
 import { TutorialPopup } from "@/modules/tutorial/TutorialPopup";
+import { DeepDivePopup } from "@/modules/deep-dive/DeepDivePopup";
 
 // ── Types ────────────────────────────────────────────
 
@@ -37,6 +39,7 @@ interface QuestLesson {
   quizProblemIds: string[];
   coins: { earned: number; total: number };
   hasTutorial: boolean;
+  hasDeepDive: boolean;
 }
 
 interface QuestTopic {
@@ -96,6 +99,7 @@ const PHASE_COLORS: Record<string, { bg: string; ring: string; text: string }> =
 };
 
 const TutorialContext = createContext<(lessonId: string) => void>(() => {});
+const DeepDiveContext = createContext<(lessonId: string) => void>(() => {});
 
 // ── Helpers ──────────────────────────────────────────
 
@@ -111,6 +115,7 @@ export function QuestRoad() {
   const [loading, setLoading] = useState(true);
   const activeRef = useRef<HTMLDivElement>(null);
   const [tutorialLessonId, setTutorialLessonId] = useState<string | null>(null);
+  const [deepDiveLessonId, setDeepDiveLessonId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/student/quest-road")
@@ -141,11 +146,24 @@ export function QuestRoad() {
 
   return (
     <TutorialContext.Provider value={(id) => setTutorialLessonId(id)}>
+    <DeepDiveContext.Provider value={(id) => setDeepDiveLessonId(id)}>
     <div>
       {tutorialLessonId && (
         <TutorialPopup
           lessonId={tutorialLessonId}
           onClose={() => setTutorialLessonId(null)}
+        />
+      )}
+      {deepDiveLessonId && (
+        <DeepDivePopup
+          lessonId={deepDiveLessonId}
+          onClose={() => setDeepDiveLessonId(null)}
+          onCoinsEarned={() => {
+            // Refresh data to update coin counts
+            fetch("/api/student/quest-road")
+              .then((r) => r.json())
+              .then((d) => setData(d));
+          }}
         />
       )}
       {/* Stats header */}
@@ -202,6 +220,7 @@ export function QuestRoad() {
         </div>
       </div>
     </div>
+    </DeepDiveContext.Provider>
     </TutorialContext.Provider>
   );
 }
@@ -594,6 +613,9 @@ function LessonNode({
           {lesson.hasTutorial && (
             <LearnButton lessonId={lesson.id} />
           )}
+          {lesson.hasDeepDive && (
+            <DeepDiveButton lessonId={lesson.id} />
+          )}
           {lesson.problemCount > 0 && (
             <Link
               href={`/practice?lessonId=${lesson.id}`}
@@ -628,6 +650,19 @@ function LearnButton({ lessonId }: { lessonId: string }) {
     >
       <Play size={11} />
       Learn
+    </button>
+  );
+}
+
+function DeepDiveButton({ lessonId }: { lessonId: string }) {
+  const openDeepDive = useContext(DeepDiveContext);
+  return (
+    <button
+      onClick={() => openDeepDive(lessonId)}
+      className="flex items-center gap-1 rounded-md border border-purple-300 bg-purple-50 px-2 py-1 text-[11px] font-medium text-purple-700 hover:bg-purple-100 dark:border-purple-800 dark:bg-purple-950/30 dark:text-purple-400 dark:hover:bg-purple-950/50"
+    >
+      <Compass size={11} />
+      Deep Dive
     </button>
   );
 }

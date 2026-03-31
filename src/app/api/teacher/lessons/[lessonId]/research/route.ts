@@ -12,13 +12,14 @@ import { researchClaude } from "@/modules/ai/claude-client";
  *   2. Learning context — saved to the lesson's sourceContent field
  */
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ lessonId: string }> }
 ) {
   const session = await requireTeacher();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { lessonId } = await params;
+  const body = await request.json().catch(() => ({}));
 
   const lesson = await prisma.lesson.findUnique({
     where: { id: lessonId },
@@ -75,14 +76,7 @@ OUTPUT FORMAT — return valid JSON:
 
 Output ONLY the JSON code block — no additional commentary.`;
 
-  try {
-    const response = await researchClaude({
-      userId: session.user.id,
-      systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: `Research and generate skills and learning context for this lesson:
+  const userMessage = `Research and generate skills and learning context for this lesson:
 
 Topic: ${lesson.topic.name}
 ${lesson.topic.ibSection ? `IB Section: ${lesson.topic.ibSection}` : ""}
@@ -95,7 +89,25 @@ ${lesson.syllabusRef ? `Syllabus reference: ${lesson.syllabusRef}` : ""}
 Current lesson content:
 ${contentStr.slice(0, 3000)}
 
-Search the web for IB Mathematics AA HL resources, exam papers, and teaching guides related to this topic to ensure accuracy and completeness.`,
+Search the web for IB Mathematics AA HL resources, exam papers, and teaching guides related to this topic to ensure accuracy and completeness.`;
+
+  // Return prompt only (for copying to external LLM)
+  if (body.promptOnly) {
+    return Response.json({
+      systemPrompt,
+      userMessage,
+      fullPrompt: `${systemPrompt}\n\n---\n\n${userMessage}`,
+    });
+  }
+
+  try {
+    const response = await researchClaude({
+      userId: session.user.id,
+      systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: userMessage,
         },
       ],
       maxTokens: 8192,

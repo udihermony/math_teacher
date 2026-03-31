@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import type { Phase } from "@/generated/prisma/client";
-import { maxPracticeCoins, quizBonus } from "@/modules/gamification/coin-calculator";
+import { maxPracticeCoins, quizBonus, deepDiveBonus } from "@/modules/gamification/coin-calculator";
 
 type NodeStatus = "locked" | "available" | "in_progress" | "completed";
 
@@ -57,6 +57,7 @@ export async function GET() {
           title: true,
           order: true,
           tutorial: true,
+          deepDive: true,
           coinableCount: true,
           problems: {
             where: { purpose: "PRACTICE" },
@@ -118,12 +119,16 @@ export async function GET() {
   // Build coin maps: lessonId -> practice coins earned, assignmentId -> bonus earned
   const practiceCoins = new Map<string, number>();
   const assignmentBonusEarned = new Set<string>();
+  const deepDiveCoins = new Map<string, number>();
   for (const tx of coinTransactions) {
     if (tx.reason === "CORRECT_ANSWER" && tx.sourceId) {
       practiceCoins.set(tx.sourceId, (practiceCoins.get(tx.sourceId) ?? 0) + tx.amount);
     }
     if (tx.reason === "ASSIGNMENT_COMPLETE" && tx.sourceId) {
       assignmentBonusEarned.add(tx.sourceId);
+    }
+    if (tx.reason === "DEEP_DIVE" && tx.sourceId) {
+      deepDiveCoins.set(tx.sourceId, (deepDiveCoins.get(tx.sourceId) ?? 0) + tx.amount);
     }
   }
 
@@ -176,10 +181,12 @@ export async function GET() {
         // Coins (scaled by phase)
         const phaseMaxPractice = lesson.coinableCount ?? maxPracticeCoins(phase);
         const phaseQuizBonus = quizBonus(phase);
+        const phaseDeepDiveBonus = lesson.deepDive ? deepDiveBonus(phase) : 0;
         const earnedPracticeCoins = Math.min(practiceCoins.get(lesson.id) ?? 0, phaseMaxPractice);
         const earnedQuizBonus = assignment && assignmentBonusEarned.has(assignment.id) ? phaseQuizBonus : 0;
-        const totalPossibleCoins = phaseMaxPractice + (assignment ? phaseQuizBonus : 0);
-        const earnedCoins = earnedPracticeCoins + earnedQuizBonus;
+        const earnedDeepDiveCoins = Math.min(deepDiveCoins.get(lesson.id) ?? 0, phaseDeepDiveBonus);
+        const totalPossibleCoins = phaseMaxPractice + (assignment ? phaseQuizBonus : 0) + phaseDeepDiveBonus;
+        const earnedCoins = earnedPracticeCoins + earnedQuizBonus + earnedDeepDiveCoins;
 
         return {
           id: lesson.id,
@@ -196,6 +203,7 @@ export async function GET() {
           quizProblemIds: assignment?.problemIds ?? [],
           coins: { earned: earnedCoins, total: totalPossibleCoins },
           hasTutorial: !!lesson.tutorial,
+          hasDeepDive: !!lesson.deepDive,
         };
       });
 

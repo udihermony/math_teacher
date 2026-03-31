@@ -178,6 +178,8 @@ export async function GET() {
       topicId = lessonToTopic.get(tx.sourceId) ?? null;
     } else if (tx.reason === "ASSIGNMENT_COMPLETE" && tx.sourceId) {
       topicId = assignmentToTopic.get(tx.sourceId) ?? null;
+    } else if (tx.reason === "DEEP_DIVE" && tx.sourceId) {
+      topicId = lessonToTopic.get(tx.sourceId) ?? null;
     } else if (tx.reason === "TOPIC_COMPLETE" && tx.sourceId) {
       topicId = tx.sourceId;
     } else if (tx.reason === "TEST_TOPIC_PASS") {
@@ -294,6 +296,7 @@ export async function GET() {
     TOPIC_COMPLETE: "Topic Complete",
     TEST_TOPIC_PASS: "Topic Test",
     TEST_PHASE_PASS: "Level Test",
+    DEEP_DIVE: "Deep Dive",
   };
 
   const recentTransactions = coinTransactions.slice(0, 20).map((tx) => ({

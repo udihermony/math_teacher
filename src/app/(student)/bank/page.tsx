@@ -13,6 +13,8 @@ interface LessonCoin {
   maxPractice: number;
   quizBonus: number;
   maxQuiz: number;
+  deepDiveBonus: number;
+  maxDeepDive: number;
 }
 
 interface TopicData {
@@ -254,6 +256,9 @@ export default function BankPage() {
                                   <span>Practice: {lesson.practiceCoins}/{lesson.maxPractice}</span>
                                   {lesson.maxQuiz > 0 && (
                                     <span>Quiz: {lesson.quizBonus}/{lesson.maxQuiz}</span>
+                                  )}
+                                  {lesson.maxDeepDive > 0 && (
+                                    <span>Deep Dive: {lesson.deepDiveBonus}/{lesson.maxDeepDive}</span>
                                   )}
                                 </div>
                               </div>
