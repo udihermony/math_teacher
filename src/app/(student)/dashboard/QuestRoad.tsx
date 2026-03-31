@@ -19,7 +19,7 @@ import {
   BellRing,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
-import { FINAL_TEST_BONUS } from "@/modules/gamification/coin-calculator";
+import { FINAL_TEST_BONUS } from "@/modules/gamification/coin-constants";
 import { TutorialPopup } from "@/modules/tutorial/TutorialPopup";
 import { DeepDivePopup } from "@/modules/deep-dive/DeepDivePopup";
 
